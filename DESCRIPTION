@@ -1,0 +1,21 @@
+Package: MIDAS
+Type: Package
+Title: Simulating Realistic Microbiome Data using MIDAS
+Version: 0.1.0
+Description: A Microbiome Data Simulator (MIDAS) for generating microbiome datasets that resemble a template microbiome dataset of the user's choice.
+Imports: psych, MASS, vegan, pracma, scam, stats
+Suggests: phyloseq, rmarkdown, knitr, HMP2Data, testthat (>= 3.0.0)
+Author: Mengyu He
+Maintainer: Mengyu He <mhe44@emory.edu>
+URL: https://github.com/mengyu-he/MIDAS
+BugReports: https://github.com/mengyu-he/MIDAS
+LazyData: true
+License: GPL-2
+Encoding: UTF-8
+Depends: R (>= 2.10)
+VignetteBuilder: knitr
+Vignette: MIDAS_vignette.Rmd
+RoxygenNote: 7.2.1
+Config/testthat/edition: 3
+NeedsCompilation: no
+Packaged: 2023-02-12 15:04:14 UTC; mhe

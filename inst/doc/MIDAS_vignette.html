@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>MIDAS package vignette</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">MIDAS package vignette</h1>
+
+
+
+<div id="overview" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Overview</h1>
+<p>The MIDAS package (v0.1.0) implements the <strong>MI</strong>crobiome
+<strong>DA</strong>ta <strong>S</strong>imulator functions that simulate
+realistic microbiome data, maintaining the distributional and
+taxon-taxon correlation of a template microbiome datase. Users may also
+change the parameter setup in the model to introduce ``effect’’ to
+facilitate simulation.</p>
+<div id="required-packages" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Required
+packages</h2>
+<p>Required packages for functions in MIDAS include: psych, MASS, vegan,
+pracma, scam. These packages are all available on CRAN.</p>
+</div>
+<div id="installation" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Installation</h2>
+<p>Install from the local file (the .tar.gz file), which you can
+download from <a href="https://github.com/mengyu-he/MIDAS" class="uri">https://github.com/mengyu-he/MIDAS</a>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_local</span>(<span class="st">&quot;MIDAS_0.1.0.tar.gz&quot;</span>, <span class="at">dependencies =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<p>A github installation is also available via</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install_github</span>(<span class="st">&quot;mengyu-he/MIDAS&quot;</span>)</span></code></pre></div>
+</div>
+<div id="open-the-vignette-in-r" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Open the Vignette in
+R</h2>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">browseVignettes</span>(<span class="st">&quot;MIDAS&quot;</span>)</span></code></pre></div>
+<p>or</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">&quot;MIDAS_vignette&quot;</span>, <span class="at">package =</span> <span class="st">&quot;MIDAS&quot;</span>)</span></code></pre></div>
+</div>
+</div>
+<div id="midas-microbiome-data-simulator" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> MIDAS: Microbiome Data
+Simulator</h1>
+<p>There are three main functions in MIDAS package:
+<em>Midas.setup()</em>, <em>Midas.modify()</em>,
+<em>Midas.sim()</em>.</p>
+<div id="template-data-description" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Template data
+description</h2>
+<p>We demonstrate the method of MIDAS and functions in this package
+using a filtered microbiome dataset of patients with IBD(Inflammatory
+Bowel Disease) in Human Microbiome Project 2 (HMP2) [1]. A filtered
+version of the data is included in the MIDAS package and can be directly
+loaded through</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;count.ibd&quot;</span>)</span></code></pre></div>
+<p>This “count.ibd” were a modified version of the IBD data in package
+<strong>HMP2Data</strong> on Bioconductor by filtering out samples with
+library sizes smaller than 3000 and taxa that appear in less than 2
+samples. The filtered data have 146 rows (samples) and 614 columns
+(taxa).</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(HMP2Data)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">IBD16S</span>()</span></code></pre></div>
+</div>
+<div id="template-data-description-1" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> Template data
+description</h2>
+<p>We demonstrate the method of MIDAS and functions in this package
+using a filtered microbiome dataset of patients with IBD(Inflammatory
+Bowel Disease) in Human Microbiome Project 2 (HMP2) [1]. The data can be
+directly loaded through</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;count.ibd&quot;</span>)</span></code></pre></div>
+<p>This HMP2 data were modified through package
+<strong>HMP2Data</strong> on Bioconductor by filtering out samples with
+library sizes smaller than 3000 and taxa that appear in less than 2
+samples. The filtered data have 146 rows (samples) and 614 columns
+(taxa).</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(HMP2Data)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">IBD16S</span>()</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>count.ibd <span class="ot">&lt;-</span> <span class="fu">t</span>(IBD16S_mtx[, <span class="fu">colSums</span>(IBD16S_mtx)<span class="sc">&gt;</span><span class="dv">3000</span>] )</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>count.ibd <span class="ot">&lt;-</span> count.ibd[, <span class="fu">colSums</span>(count.ibd<span class="sc">&gt;</span><span class="dv">0</span>)<span class="sc">&gt;</span><span class="dv">1</span>]</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(count.ibd)</span></code></pre></div>
+<p>Other datasets come with the package include a vaginal microbiome
+dataset from HMP2 [1] and a upper-respiratory-tract microbiome dataset
+[2].</p>
+</div>
+<div id="setup-midas-model" class="section level2" number="2.3">
+<h2><span class="header-section-number">2.3</span> Setup MIDAS
+model</h2>
+<p>The function <em>Midas.setup()</em> fits the underlying MIDAS model
+and extracts information from the template data and returns the
+estimated parameters for microbiome simulation.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fitted <span class="ot">&lt;-</span> <span class="fu">Midas.setup</span>(count.ibd, <span class="at">n.break.ties =</span> <span class="dv">100</span>, <span class="at">fit.beta =</span> F)</span></code></pre></div>
+<p>The argument <code>n.break.ties</code> specifies he number of
+replicates used to break ties when ranking relative abundances for each
+taxon. When <code>fit.beta = FALSE</code> (default), <span style="color:red">a rank based approach is used to obtain the relative
+abundances for taxa that are considered to be non-zero in the simulated
+data. </span> When <code>fit.beta = TRUE</code>, a beta distribution is
+fitted for the relative abundance of each taxon by matching the first
+two moments. Suppose for taxon <span class="math inline">\(j\)</span>,
+the mean and sample variance of relative abundances <span class="math inline">\(\boldsymbol{\pi}_j\)</span> are <span class="math inline">\(\bar{\boldsymbol{\pi}}_j\)</span> and <span class="math inline">\(s^2_j\)</span>, then the shape parameters of the
+beta distribution are <span class="math display">\[\alpha_j =
+\bar{\boldsymbol{\pi}}_j(\frac{\bar{\boldsymbol{\pi}}_j(1-\bar{\boldsymbol{\pi}}_j)}{s^2_j}
+-1 ),\]</span></p>
+<p><span class="math display">\[\beta_j =
+\alpha_j\frac{1-\bar{\boldsymbol{\pi}}_j}{\bar{\boldsymbol{\pi}}_j}.\]</span>
+The returned values of <em>Midas.setup()</em> include: estimated
+tetrachoric correlation of observed presence-absence data (tetra.corr),
+estimated Pearson correlation of observed relative abundances
+(corr.rel.corrected), proportion of non-zero cells for each subject and
+taxon (pbar, eta), observed non-zero relative abundances of each taxon
+(non.zero.rel), observed mean relative abundances of each taxon
+(obs.rel.abund).</p>
+</div>
+<div id="modify-the-fitted-midas-model" class="section level2" number="2.4">
+<h2><span class="header-section-number">2.4</span> Modify the fitted
+MIDAS model</h2>
+<p>The function <em>Midas.modify()</em> allows users to modify taxon
+relative abundances, library sizes, taxon proportion of non-zero cells
+and number of samples. Note that this is a <strong>required</strong>
+step even if no adjustment is made.</p>
+<div id="no-modification-at-all" class="section level3" number="2.4.1">
+<h3><span class="header-section-number">2.4.1</span> No modification at
+all</h3>
+<p>When no additional adjustment is wanted
+(<code>lib.size = NULL</code>, <code>n.sample = NULL</code>,
+<code>rel.abund = NULL</code>, <code>taxa.1.prop = NULL</code>), the
+target library sizes of the simulated data are the same as that of the
+template. The following code is an example.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted, </span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                               <span class="at">lib.size =</span> <span class="cn">NULL</span>, </span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                               <span class="at">rel.abund =</span> <span class="cn">NULL</span>, </span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">taxa.1.prop =</span> <span class="cn">NULL</span>)</span></code></pre></div>
+</div>
+<div id="modify-library-sizes" class="section level3" number="2.4.2">
+<h3><span class="header-section-number">2.4.2</span> Modify library
+sizes</h3>
+<p>When users are interested in changing some key features of the
+microbiome community, we can use the following code.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted, </span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">lib.size =</span> <span class="fu">sample</span>(<span class="dv">1000</span><span class="sc">:</span><span class="dv">10000</span>, </span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>                                                  <span class="fu">nrow</span>(count.ibd), </span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                                                  <span class="at">replace =</span> T) )</span></code></pre></div>
+<p>Here, the library sizes for all samples are taken as random samples
+with replacement from 1000 to 10000. The total number of samples is the
+same as in the IBD data. Note, if both library sizes and sample size are
+specified, the length of the vector of library sizes should be the same
+as n.sample. If the function gives the error that the marginal propotion
+of non-zeros can not be reached,</p>
+</div>
+<div id="modify-features-of-taxa" class="section level3" number="2.4.3">
+<h3><span class="header-section-number">2.4.3</span> Modify features of
+taxa</h3>
+<p>Midas.modify() allows users to modify three types of quantities,</p>
+<span class="math inline">\(\hat{p}_j\)</span>: mean relative abundances
+of taxa (<code>rel.abund</code>)
+<span class="math inline">\(\hat{p}^1_j\)</span>: mean relative
+abundances of taxa among non-zero samples (<code>rel.abund.1</code>)
+<p><span class="math inline">\(\hat{\delta}_j\)</span>: proportion of
+non-zero cells for taxa (<code>taxa.1.prop</code>)</p>
+<p>These tree quantities are related by <span class="math display">\[\hat{p}_j = \hat{\delta}_j\hat{p}^1_j,\]</span>
+and the function will stop and give a message when the three quantities
+are all specified but the equation is not met. Other constraints
+include,</p>
+<p><span class="math display">\[\hat{p}_j\leq \hat{p}^1_j\]</span> <span class="math display">\[\hat{p}_j\leq \hat{\delta}_j\]</span></p>
+<div id="only-one-feature-of-taxa-is-given" class="section level4" number="2.4.3.1">
+<h4><span class="header-section-number">2.4.3.1</span> Only one feature
+of taxa is given</h4>
+<p>If only one of the above three quantities is given, Midas.modify()
+allows users to only provide information on mean relative abundances of
+taxa <span class="math inline">\(\hat{p}\)</span> or proportion of
+non-zero cells for taxa <span class="math inline">\(\hat{\delta}\)</span>. Note that, only specifying
+the mean relative abundances of taxa among non-zero samples <span class="math inline">\(\hat{p}^1\)</span> is not allowed.</p>
+<p>When only the mean relative abundances of taxa <span class="math inline">\(p\)</span> is given, the function fits a Shape
+Constrained Additive model (SCAM) model for <span class="math inline">\(\delta\)</span> on <span class="math inline">\(p\)</span>,</p>
+<p><span class="math display">\[log(\frac{\delta_j}{1-\delta_j}) =
+g(log10(p_{j})),\]</span> where <span class="math inline">\(g\)</span>
+is a monotone smoothing spline, <span class="math inline">\(\delta_j\)</span> is the observed proportion of
+non-zero cells of <span class="math inline">\(j\)</span>-th taxon, and
+<span class="math inline">\(p_{j}\)</span> is the observed mean relative
+abundances of <span class="math inline">\(j\)</span>-th taxon.</p>
+<p>The following is an example. We first generate a set of target taxa
+relative abundances by adding a normally distributed disturbance to the
+observed relative abundances. Let <span class="math display">\[\hat{p}_j
+= p_j + 0.1\cdot N(p_j, p_j),\]</span> where <span class="math inline">\(N(p_j, p_j)\)</span> is a normal distribution with
+mean and standard deviation equal to <span class="math inline">\(p_j\)</span>. The following is the code for
+generating a set of target relative abundances as described,</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>n.taxa <span class="ot">&lt;-</span> <span class="fu">ncol</span>(count.ibd)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>target.rel.abund <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n.taxa) {</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  target.rel.abund[j] <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">1</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">while</span> (target.rel.abund[j]<span class="sc">&lt;</span><span class="dv">0</span> <span class="sc">|</span> target.rel.abund[j]<span class="sc">&gt;</span><span class="dv">1</span>) {</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    target.rel.abund[j] <span class="ot">&lt;-</span> fitted<span class="sc">$</span>obs.rel.abund[j] <span class="sc">+</span> <span class="fl">0.1</span><span class="sc">*</span>(<span class="fu">rnorm</span>(<span class="dv">1</span>, fitted<span class="sc">$</span>obs.rel.abund[j], fitted<span class="sc">$</span>obs.rel.abund[j]))</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>then the target taxa relative abundances can be used in
+Midas.modify() as the following,</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted, </span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">rel.abund  =</span> target.rel.abund)</span></code></pre></div>
+<p>When only the proportion of non-zero cells of taxa <span class="math inline">\(\hat{\delta}\)</span> is given, the function fits
+a SCAM model for <span class="math inline">\(p\)</span> on <span class="math inline">\(\delta\)</span>,</p>
+<p><span class="math display">\[log(\frac{p_j}{1-p_j}) =
+g(log10(\delta_{j})).\]</span> Suppose the target proportions of
+non-zero cells are the randomly shuffled ones from the template, the
+following code can be used,</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted,</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">taxa.1.prop =</span> <span class="fu">sample</span>(fitted<span class="sc">$</span>prop<span class="fl">.1</span>))</span></code></pre></div>
+</div>
+<div id="full-information-of-taxa-features-is-given" class="section level4" number="2.4.3.2">
+<h4><span class="header-section-number">2.4.3.2</span> Full information
+of taxa features is given</h4>
+<p>If the three quantities <span class="math inline">\(\hat{p},
+\hat{p}^1,\hat{\delta}\)</span>, or any two of them are given, full
+information of taxa features is given, then no additional model for
+changing taxa features is needed.</p>
+<p>The following code is one example that gives the mean relative
+abundances <span class="math inline">\(\hat{p}\)</span> and uses the
+same proportion of non-zeros as in the template.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted,</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">rel.abund =</span> target.rel.abund,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>                                <span class="at">taxa.1.prop =</span> <span class="st">&quot;same&quot;</span>)</span></code></pre></div>
+<p>Note that, specifying taxa features to be <code>&quot;same&quot;</code> is
+different from giving a <code>NULL</code> value. If in the above
+example, we use <code>taxa.1.prop = NULL</code>, then the proportion of
+non-zeros will be changed by fitting a SCAM model and making
+predictions; however, if we use <code>taxa.1.prop = &quot;same&quot;</code>, the
+proportions of non-zeros of taxa will remain the same as in the template
+data.</p>
+</div>
+<div id="adjustment-for-parameters-of-beta-distribution" class="section level4" number="2.4.3.3">
+<h4><span class="header-section-number">2.4.3.3</span> Adjustment for
+parameters of beta distribution</h4>
+<p>If we set <code>fit.beta = TRUE</code> in Midas.setup(), which asks
+for simulating relative abundances from a beta distribution,
+Midas.modify() will make corresponding adjustment to the estimated shape
+parameters of the beta distribution. Suppose the observed relative
+abundances for <span class="math inline">\(j\)</span>-th taxon are <span class="math inline">\(\pi_{\cdot j}\)</span>, then the adjusted relative
+abundances are obtained by <span class="math inline">\(\hat{\pi}_{\cdot
+j}= \pi_{\cdot j}^\alpha\)</span>, where <span class="math inline">\(\alpha\)</span> is chosen so that, after
+adjustment, the mean relative abundance in taxon j is <span class="math inline">\(\hat{p}_{j}\)</span>.</p>
+</div>
+</div>
+<div id="modify-library-sizes-and-features-of-taxa-simultaneously" class="section level3" number="2.4.4">
+<h3><span class="header-section-number">2.4.4</span> Modify library
+sizes and features of taxa simultaneously</h3>
+<p>Library sizes and taxa features can be manipulated simultaneously. In
+the following code, the library sizes for all samples are taken as
+random samples with replacement from 1000 to 10000, and the zero
+proportions for all taxa were taken as a random permutation of the
+estimated zero proportions.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted, </span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">lib.size =</span> <span class="fu">sample</span>(<span class="dv">1000</span><span class="sc">:</span><span class="dv">10000</span>, <span class="fu">nrow</span>(count.ibd), <span class="at">replace =</span> T),</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>                                <span class="at">taxa.1.prop  =</span> <span class="fu">sample</span>(fitted<span class="sc">$</span>prop<span class="fl">.1</span>),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>                                <span class="at">method.total0 =</span> <span class="st">&quot;scam&quot;</span>)</span></code></pre></div>
+<p>Users are also able to modify library sizes and taxa relative
+abundances simultaneously through Midas.modify(),</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fitted.modified <span class="ot">&lt;-</span> <span class="fu">Midas.modify</span>(fitted, </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">lib.size =</span> <span class="fu">sample</span>(<span class="dv">1000</span><span class="sc">:</span><span class="dv">10000</span>, <span class="fu">nrow</span>(count.ibd), <span class="at">replace =</span> T),</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>                                <span class="at">rel.abund  =</span> target.rel.abund,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>                                <span class="at">method.total0 =</span> <span class="st">&quot;scam&quot;</span>)</span></code></pre></div>
+<p>The function allows users to choose a method for finding a proper
+value of the total number of non-zeros that agrees with both target
+library sizes and proportion of non-zeros through the argument
+<code>method.total0</code>. By default, Midas.modify() uses
+<code>method.total0 = &quot;scam&quot;</code>, which fits a Shape Constrained
+Additive model (SCAM) model to estimate the presence-absence information
+for each taxon of each subject. If
+<code>method.total0 = &quot;geometric&quot;</code> is specified, the function uses
+the geometric mean of the number of total non-zeros cells predicted by
+target library sizes and taxa prevalence. The latter option is usually
+faster than the former one by avoiding fitting a model.</p>
+</div>
+<div id="simulate-microbiome-data-with-the-fitted-midas-model" class="section level3" number="2.4.5">
+<h3><span class="header-section-number">2.4.5</span> Simulate microbiome
+data with the fitted MIDAS model</h3>
+<p>The function <em>Midas.sim()</em> takes the estimates from MIDAS
+model and simulates microbiome data. By default, the output includes the
+simulated presence-absence data, relative abundances and count data.The
+generated sample size will be the same as what is specified in the
+<em>Midas.modify</em> function.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>simu <span class="ot">&lt;-</span> <span class="fu">Midas.sim</span>(fitted.modified)</span></code></pre></div>
+</div>
+</div>
+<div id="references" class="section level2" number="2.5">
+<h2><span class="header-section-number">2.5</span> References</h2>
+<p>[1] Lloyd-Price, J., Arze, C., Ananthakrishnan, A.N. <em>et al</em>.
+Multi-omics of the gut microbial ecosystem in inflammatory bowel
+diseases. <em>Nature</em> 569, 655–662 (2019). <a href="https://doi.org/10.1038/s41586-019-1237-9" class="uri">https://doi.org/10.1038/s41586-019-1237-9</a>.</p>
+<p>[2] Charlson, E.S., Chen, J., Custers-Allen, R. <em>et al</em>.
+Disordered microbial communities in the upper respiratory tract of
+cigarette smokers. <em>PloS one</em>, 5(12), e15216 (2010). <a href="https://doi.org/10.1371/journal.pone.0015216" class="uri">https://doi.org/10.1371/journal.pone.0015216</a></p>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
