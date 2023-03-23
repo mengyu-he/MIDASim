@@ -104,157 +104,187 @@ dim(count.ibd)
 
 Other datasets come with the package include a vaginal microbiome dataset from HMP2 [1] and a upper-respiratory-tract microbiome dataset [2].
 
-## Setup MIDAS model
+## Setup the MIDAS model
 
-The function *Midas.setup()* fits the underlying MIDAS model and extracts information from the template data and returns the estimated parameters for microbiome simulation.
+The function *Midas.setup()* fits the underlying MIDAS model and extracts information from the template data and returns the estimated parameters for microbiome simulation. To fit MIDAS to the count.ibd data, the following command can be used:
 
 ```{r}
-fitted <- Midas.setup(count.ibd, n.break.ties = 100, fit.beta = F)
+count.ibd.setup <- Midas.setup(count.ibd, n.break.ties = 100, fit.beta = F)
 ```
 
-The argument `n.break.ties` specifies he number of replicates used to break ties when ranking relative abundances for each taxon. When `fit.beta = FALSE` (default), <span style="color:red">a rank based approach is used to obtain the relative abundances for taxa that are considered to be non-zero in the simulated data. </span> When `fit.beta = TRUE`,  a beta distribution is fitted for the relative abundance of each taxon by matching the first two moments. Suppose for taxon $j$, the mean and sample variance of relative abundances $\boldsymbol{\pi}_j$ are $\bar{\boldsymbol{\pi}}_j$ and $s^2_j$, then the shape parameters of the beta distribution are
-$$\alpha_j = \bar{\boldsymbol{\pi}}_j(\frac{\bar{\boldsymbol{\pi}}_j(1-\bar{\boldsymbol{\pi}}_j)}{s^2_j} -1 ),$$
+The argument `n.break.ties` specifies he number of replicates used to break ties when ranking relative abundances for each taxon. When `fit.beta = FALSE` (default), <span style="color:red">a rank based approach is used to obtain the relative abundances for taxa that are considered to be non-zero in the simulated data. </span> When `fit.beta = TRUE`,  a beta distribution is fitted for the relative abundance of each taxon by matching the first two moments. In particular, for taxon $j$, if the mean and sample variance of relative abundances $\boldsymbol{\pi}_j$ are $\bar{\boldsymbol{\pi}}_j$ and $s^2_j$, then the corresponding parameters of the beta distribution are
+$$\alpha_j = \bar{\boldsymbol{\pi}}_j\left(\frac{\bar{\boldsymbol{\pi}}_j(1-\bar{\boldsymbol{\pi}}_j)}{s^2_j} -1 \right),$$
 
-$$\beta_j = \alpha_j\frac{1-\bar{\boldsymbol{\pi}}_j}{\bar{\boldsymbol{\pi}}_j}.$$
-The returned values of *Midas.setup()* include: estimated tetrachoric correlation of observed presence-absence data (tetra.corr), estimated Pearson correlation of observed relative abundances (corr.rel.corrected), proportion of non-zero cells for each subject and taxon (pbar, eta), observed non-zero relative abundances of each taxon (non.zero.rel), observed mean relative abundances of each taxon (obs.rel.abund).
+$$\beta_j = \alpha_j\left(\frac{1-\bar{\boldsymbol{\pi}}_j}{\bar{\boldsymbol{\pi}}_j}\right).$$
+The returned values of *Midas.setup()* include: the estimated tetrachoric correlation of observed presence-absence data `tetra.corr`, the estimated Pearson correlation of observed relative abundances `corr.rel.corrected`, the proportion of non-zero cells for each taxon `taxa.1.prop` and number of non-zero cells for each subject `num.1`, the observed mean relative abundances of each taxon `mean.rel.abund`, and the observed relative abundances among non-zero cells for each taxon `mean.rel.abund.1`.
 
 ## Modify the fitted MIDAS model
 
-The function *Midas.modify()* allows users to modify taxon relative abundances, library sizes, taxon proportion of non-zero cells and number of samples. Note that this is a **required** step even if no adjustment is made.
+The function *Midas.modify()* sets up quantities required to simulate data using MIDAS.  This function also allows users to modify taxon relative abundances, library sizes, taxon proportion of non-zero cells and number of samples. Note that this is a **required** step even if no adjustment is made.
+
+MIDAS supports two kinds of simulation strategies.  In the first, users can change one set of parameters (e.g., library sizes) or even library sizes and taxon relative abundances and let MIDAS choose the remaning parameters using a generalized additive model.  This strategy is designed to retain relationships between parameters found in the target data.  The second strategy allows the user to specify all the parameters.  For example, library size can be increased without changing the proportion of empty cells.  Although this strategy may produce data that is not as realistic, it may appeal to people who are developing methods for analyzing microbiome data.
+
+In addition to changes in library size and the number of samples, Midas.modify() allows users to directly or indirectly specify three types of quantities:
+
+* $\hat{p}_j$: mean relative abundances of taxa (`mean.rel.abund`)
+* $\hat{p}^1_j$: mean relative abundances of taxa among non-zero samples (`mean.rel.abund.1`)
+* $\hat{\delta}_j$: proportion of non-zero cells for taxa (`taxa.1.prop`)
+
+These three quantities are related by
+$$\hat{p}_j = \hat{\delta}_j\hat{p}^1_j,$$
+and the function will stop and give a message if all three quantities are specified by the user but the equation is not met. Other constraints include,
+
+$$\hat{p}_j\leq \hat{p}^1_j$$
+$$\hat{p}_j\leq \hat{\delta}_j$$
+and failure to satisfy these constraints will also cause MIDAS to terminate. 
+
 
 ### No modification at all
 
-When no additional adjustment is wanted (`lib.size = NULL`, `n.sample = NULL`, `rel.abund = NULL`, `taxa.1.prop = NULL`), the target library sizes of the simulated data are the same as that of the template. The following code is an example.
+When no additional adjustment is wanted (`lib.size = NULL`, `n.sample = NULL`, `mean.rel.abund = NULL`, `taxa.1.prop = NULL`), the number of samples and their target library sizes for the simulated data are the same as that of the template. The following code is an example.
 
 ```{r}
-fitted.modified <- Midas.modify(fitted, 
-                               lib.size = NULL, 
-                               rel.abund = NULL, 
-                               taxa.1.prop = NULL)
+count.ibd.modified <- Midas.modify(count.ibd.setup, 
+                                   lib.size = NULL, 
+                                   mean.rel.abund = NULL, 
+                                   taxa.1.prop = NULL)
 ```
+We next describe how to modify the features of the data, to allow for a wide variety of simulation scenarios.
 
-### Modify library sizes
+### Modify the number of samples and their library sizes
 
-When users are interested in changing some key features of the microbiome community, we can use the following code.
+To change the library sizes, set the lib.size argument equal to a vector with the target library sizes.  The length of this vector becomes the new number of samples.  
+
+Because larger library sizes are typically accompanied by fewer zero cells, MIDAS.modify can fit a Shape Constrained Additive model (SCAM) model 
+$$ log10(Z_{i.}) = f\left(log_{10}(N_{i})\right)+\epsilon_i $$
+to determine the appropriate number of zero cells for the new library size, where $Z_{ij}=0$ if the $i^{th}$ sample has no counts of taxon $j$ and $Z_{ij}=1$ otherwise.  
+
+For example, to generate data having library sizes that are uniformly distributed between 1,000 and 10,000 while changing the number of samples to 700 and allowing the proportion of non-zero cells to adjust according the the SCAM model, we execute the code
 
 ```{r}
-fitted.modified <- Midas.modify(fitted, 
-                                lib.size = sample(1000:10000, 
-                                                  nrow(count.ibd), 
-                                                  replace = T) )
+new.lib.size=sample(1000:10000, size=700, replace=T)
+count.ibd.modified <- Midas.modify(count.ibd.setup, 
+                                   lib.size = new.lib.size)
 ```
 
-Here, the library sizes for all samples are taken as random samples with replacement from 1000 to 10000. The total number of samples is the same as in the IBD data. Note, if both library sizes and sample size are specified, the length of the vector of library sizes should be the same as n.sample. If the function gives the error that the marginal propotion of non-zeros can not be reached, 
+
+If desired, MIDAS can retain the proportion of zero cells in each taxon as found in the target data by specifying any two taxon-level parameters, e.g. `taxa.1.prop='same'` and `mean.rel.abund='same'`. In this case, the SCAM model is not fit.  Note that, specifying taxa features to be `"same"` is different from giving a `NULL` value. In the previous example, to change library sizes without changing the proportion of non-zero cells in each taxon, we use the code
+
+```{r}
+new.lib.size=sample(1000:10000, size=146, replace=T)
+count.ibd.modified <- Midas.modify(count.ibd.setup, 
+                                   lib.size = new.lib.size,
+                                   taxa.1.prop = 'same',
+                                   mean.rel.abund='same')
+```
+This example is exactly equivalent to scaling the rows of the count table by the new library sizes.
+
 
 
 ### Modify features of taxa
 
-Midas.modify() allows users to modify three types of quantities,
-
-\item $\hat{p}_j$: mean relative abundances of taxa (`rel.abund`)
-\item $\hat{p}^1_j$: mean relative abundances of taxa among non-zero samples (`rel.abund.1`)
-\item $\hat{\delta}_j$: proportion of non-zero cells for taxa (`taxa.1.prop`)
-
-These tree quantities are related by
-$$\hat{p}_j = \hat{\delta}_j\hat{p}^1_j,$$
-and the function will stop and give a message when the three quantities are all specified but the equation is not met. Other constraints include,
-
-$$\hat{p}_j\leq \hat{p}^1_j$$
-$$\hat{p}_j\leq \hat{\delta}_j$$
+In this section, we assume that only taxon quantities are to be modified; in section 2.4.4 we consider simultaneous modification of taxon quantities and library sizes.
 
 #### Only one feature of taxa is given
 
-If only one of the above three quantities is given, Midas.modify() allows users to only provide information on mean relative abundances of taxa $\hat{p}$ or proportion of non-zero cells for taxa $\hat{\delta}$. Note that, only specifying the mean relative abundances of taxa among non-zero samples $\hat{p}^1$ is not allowed.
+If only one of the above three quantities is specified by the user, then MIDAS will use a flexible model to infer appropriate values of the other two quantities. When only the mean relative abundances of taxa $p$ is given, MIDAS.modify fits a SCAM model for $\delta$ on $p$,
 
-When only the mean relative abundances of taxa $p$ is given, the function fits a Shape Constrained Additive model (SCAM) model for $\delta$ on $p$,
+$$logit \left(\delta_j\right) = g\left(log_{10}(p_{j})\right)+\epsilon_j$$
+where $g$ is a monotone smoothing spline, $\delta_j$ is the observed proportion of non-zero cells of $j$-th taxon, and $p_{j}$ is the observed mean relative abundances of $j$-th taxon. The values of $p^1_j$ are then determined by the constraint.
 
-$$log(\frac{\delta_j}{1-\delta_j}) = g(log10(p_{j})),$$
-where $g$ is a monotone smoothing spline, $\delta_j$ is the observed proportion of non-zero cells of $j$-th taxon, and $p_{j}$ is the observed mean relative abundances of $j$-th taxon. 
+When only the proportion of non-zero cells of taxa $\hat{\delta}$ is given, MIDAS.modify fits a SCAM model for $p$ on $\delta$,
 
-The following is an example. We first generate a set of target taxa relative abundances by adding a normally distributed disturbance to the observed relative abundances. Let
-$$\hat{p}_j = p_j + 0.1\cdot N(p_j, p_j),$$
-where $N(p_j, p_j)$ is a normal distribution with mean and standard deviation equal to $p_j$. The following is the code for generating a set of target relative abundances as described, 
+$$logit(p_j) = g\left(log_{10}(\delta_{j})\right)+\epsilon_j$$
+Note that only specifying the mean relative abundances of taxa among non-zero samples $\hat{p}^1$ is not allowed.
+
+
+We next give examples of these kinds of modifications, starting with modifications that only specify a new value for the relative abundances $p_j$. Suppose we want to increase $log(p_j)$ by $\beta=0.1$ for the first 10 taxa (e.g. modify these taxa according to a compositional model).  The following is the code for generating a set of target relative abundances as described, 
 
 ```{r}
-n.taxa <- ncol(count.ibd)
-target.rel.abund <- NULL
+beta=0.1
+new.mean.rel.abund <- count.ibd.setup$mean.rel.abund
+new.mean.rel.abund[1:10]=exp(beta)*new.mean.rel.abund[1:10]
+new.mean.rel.abund=new.mean.rel.abund/sum(new.mean.rel.abund)
 
-for (j in 1:n.taxa) {
-  target.rel.abund[j] <- -1
-  while (target.rel.abund[j]<0 | target.rel.abund[j]>1) {
-    target.rel.abund[j] <- fitted$obs.rel.abund[j] + 0.1*(rnorm(1, fitted$obs.rel.abund[j], fitted$obs.rel.abund[j]))
-  }
-}
 ```
 
 then the target taxa relative abundances can be used in Midas.modify() as the following,
 
 ```{r}
-fitted.modified <- Midas.modify(fitted, 
-                                rel.abund  = target.rel.abund)
+count.ibd.modified <- Midas.modify(count.ibd.setup, 
+                                   mean.rel.abund=new.mean.rel.abund)
 ```
 
 
-When only the proportion of non-zero cells of taxa $\hat{\delta}$ is given, the function fits a SCAM model for $p$ on $\delta$,
-
-$$log(\frac{p_j}{1-p_j}) = g(log10(\delta_{j})).$$
-Suppose the target proportions of non-zero cells are the randomly shuffled ones from the template, the following code can be used,
+As a second example, suppose the target proportions of non-zero cells for the first 10 taxa are to be increased by a factor of exp(beta) while all others are unchanged.  Then, the following code can be used:
 
 ```{r}
-fitted.modified <- Midas.modify(fitted,
-                                taxa.1.prop = sample(fitted$prop.1))
+new.taxa.1.prop=count.ibd.setup$taxa.1.prop
+new.taxa.1.prop[1:10]=pmin(exp(beta)*new.taxa.1.prop[1:10],1)
+count.ibd.modified <- Midas.modify(count.ibd.setup,
+                                   taxa.1.prop=new.taxa.1.prop) 
 ```
 
 
 #### Full information of taxa features is given
 
-If the three quantities $\hat{p}, \hat{p}^1,\hat{\delta}$, or any two of them are given, full information of taxa features is given, then no additional model for changing taxa features is needed. 
+If all three quantities $\hat{p}, \hat{p}^1,\hat{\delta}$, or any two of them are given, full information of taxa features is given, then no additional model for changing taxa features is needed. 
 
-The following code is one example that gives the mean relative abundances $\hat{p}$ and uses the same proportion of non-zeros as in the template.
+The following code is one example that specifies the relative abundances `new.mean.rel.abund` as calculated in the section 2.4.3.1 but uses the same proportion of non-zeros as in the template data.
 
 ```{r}
-fitted.modified <- Midas.modify(fitted,
-                                rel.abund = target.rel.abund,
-                                taxa.1.prop = "same")
+count.ibd.modified <- Midas.modify(count.ibd.setup,
+                                   mean.rel.abund = new.mean.rel.abund,
+                                   taxa.1.prop = "same")
 ```
 
-Note that, specifying taxa features to be `"same"` is different from giving a `NULL` value. If in the above example, we use `taxa.1.prop = NULL`, then the proportion of non-zeros will be changed by fitting a SCAM model and making predictions; however, if we use `taxa.1.prop = "same"`, the proportions of non-zeros of taxa will remain the same as in the template data. 
+Note that, specifying taxa features to be `"same"` is different from giving a `NULL` value. If in the above example, we use `taxa.1.prop = NULL`, then the proportion of non-zeros will be changed by fitting a SCAM model and making predictions; however, if we use `taxa.1.prop = "same"`, the proportions of non-zeros of taxa will remain the same as in the template data, and is equivalent to using `taxa.1.prop = count.ibd.setup$taxa.1.prop`.
 
+Although fully specifying the taxa features may result in users generating data that is `less realistic' in some sense, it allows the user greater control over what parameters will be used to simulate data.  This level of control is important, for example, when conducting simulation studies of programs that test for association between taxa and traits.
 
 #### Adjustment for parameters of beta distribution
 
-If we set `fit.beta = TRUE` in Midas.setup(), which asks for simulating relative abundances from a beta distribution, Midas.modify() will make corresponding adjustment to the estimated shape parameters of the beta distribution. Suppose the observed relative abundances for $j$-th taxon are $\pi_{\cdot j}$, then the adjusted relative abundances are obtained by $\hat{\pi}_{\cdot j}= \pi_{\cdot j}^\alpha$, where $\alpha$ is chosen so that, after adjustment, the mean relative abundance in taxon j is $\hat{p}_{j}$. 
+If we set `fit.beta = TRUE` in Midas.setup(), which asks for simulating relative abundances from a beta distribution, Midas.modify() will make corresponding adjustment to the estimated shape parameters of the beta distribution. Suppose the observed relative abundances for $j$-th taxon are $\pi_{\cdot j}$, then the adjusted relative abundances are obtained by $\hat{\pi}_{\cdot j}= \pi_{\cdot j}^\alpha$, where $\alpha$ is chosen so that, after adjustment, the mean relative abundance in taxon j is `new.mean.rel.abund[j]` in the code example in section 2.4.3.2.
 
 
 ### Modify library sizes and features of taxa simultaneously
 
-Library sizes and taxa features can be manipulated simultaneously. In the following code, the library sizes for all samples are taken as random samples with replacement from 1000 to 10000, and the zero proportions for all taxa were taken as a random permutation of the estimated zero proportions. 
+Library sizes and taxa features can be manipulated simultaneously. As before, two strategies are supported: one in which new library sizes and taxon relative abundances are specified and MIDAS uses a SCAM model to fit the others, and one in which the uses specifies all quantities. 
+
+For example, in the following code, the library sizes and number of samples is changed to the value new.lib.size defined in section 2.4.2, and the relative abundance vector is changed to the value new.mean.rel.abund defined in section 2.4.3.1. 
 
 ```{r}
-fitted.modified <- Midas.modify(fitted, 
-                                lib.size = sample(1000:10000, nrow(count.ibd), replace = T),
-                                taxa.1.prop  = sample(fitted$prop.1),
-                                method.total0 = "scam")
+count.ibd.modified <- Midas.modify(count.ibd.setup, 
+                                   lib.size = new.lib.size,
+                                   mean.rel.abund  = new.mean.rel.abund)
 ```
+Because only mean.rel.abund is specified, MIDAS uses the SCAM model
+$$ log_{10}(Z_{i.}) = f\left(log_{10}(N_{i})\right)+g\left(log_{10}(p_j)\right)+\epsilon_{ij} $$
+Note that MIDAS does not currently support specifying \textit{only} a new library size and a new value of `taxa.1.prop` or \textit{only} a new library size and `mean.rel.abund.1`.  To make changes like these, the full taxon information must be specified, as described next.
 
-Users are also able to modify library sizes and taxa relative abundances simultaneously through Midas.modify(),
+Users can also fully specify the new taxon-level quantities and library sizes as described previously.  For example, the following code will change the relative abundances and library sizes while keeping the same proportion of nonzero cells in each taxon as in the target data:
+
+
 
 ```{r}
-fitted.modified <- Midas.modify(fitted, 
-                                lib.size = sample(1000:10000, nrow(count.ibd), replace = T),
-                                rel.abund  = target.rel.abund,
-                                method.total0 = "scam")
+count.ibd.modified <- Midas.modify(count.ibd.setup, 
+                                   lib.size = new.lib.size,
+                                   mean.rel.abund  = new.mean.rel.abund,
+                                   taxa.1.prop = 'same'
+                                   )
 ```
+In this case, MIDAS first modifies the library size as described in section 2.4.2 and then modifies the taxon-level quantities as described in section 2.4.3.2.
 
-The function allows users to choose a method for finding a proper value of the total number of non-zeros that agrees with both target library sizes and proportion of non-zeros through the argument `method.total0`. By default, Midas.modify() uses `method.total0 = "scam"`, which fits a Shape Constrained Additive model (SCAM) model to estimate the presence-absence information for each taxon of each subject. If `method.total0 = "geometric"` is specified, the function uses the geometric mean of the number of total non-zeros cells predicted by target library sizes and taxa prevalence. The latter option is usually faster than the former one by avoiding fitting a model.
+
 
 
 ### Simulate microbiome data with the fitted MIDAS model
 
-The function *Midas.sim()* takes the estimates from MIDAS model and simulates microbiome data. By default, the output includes the simulated presence-absence data, relative abundances and count data.The generated sample size will be the same as what is specified in the *Midas.modify* function. 
+The function *Midas.sim()* takes the quantities obtained from Midas.modify and simulates microbiome data. If the input data was a count table, then the output is comprised of `s01_res`, the simulated 0/1 (presence-absence) data, `s_rel`, the table of relative abundances, and `sim_count`, the table of count data.  If the original input data was a relative abundance table, only a 0/1 and table of relative abundances is generated.
 
 ```{r}
-simu <- Midas.sim(fitted.modified)
+simulated.data <- Midas.sim(count.ibd.modified)
+summary(simulated.data)
 ```
 
 

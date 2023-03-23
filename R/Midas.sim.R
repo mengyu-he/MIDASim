@@ -49,7 +49,7 @@ Midas.sim = function(fitted.modified, only.rel = FALSE) {
 
   if (is.null(fitted.modified$alpha)) {
     rel.sim <- matrix(NA, nrow = n.sample, ncol = n.taxa)
-
+    n0 <- lengths(fitted.modified$rel.abund.1)
     for (j in 1:n.taxa) {
       tmp.rank <- rep(NA, n.sample)
 
@@ -61,10 +61,10 @@ Midas.sim = function(fitted.modified, only.rel = FALSE) {
 
       n1 <- sum(sim_01[, j])        # number of 1's in simulated 0/1 from step 1
 
-      n2 <- fitted.modified$n0[j]            # number of 1's in the original
+      n2 <- n0[j]            # number of 1's in the original
 
       ## tmp1: non-zero relative abundances for taxon j
-      tmp1 <- fitted.modified$non.zero.rel[[j]]
+      tmp1 <- fitted.modified$rel.abund.1[[j]]
 
       ## If a taxon is assigned n1-n2 more 1's than that in the original data (n1 > n2),
       ## sample n1-n2 values from tmp1 (non-zero relative abundances) with replacement

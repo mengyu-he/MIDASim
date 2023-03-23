@@ -17,32 +17,27 @@ relative abundances. Defaults to \code{100}.}
 
 \item{fit.beta}{A logical indicating whether to fit a beta distribution for
 the relative abundance of each taxon. Defaults to \code{FALSE}.}
-
-\item{extra.shrink}{A logical indicating whether to apply extra shrinkage
-for the correlation matrix of presence-absence data by estimating \code{alpha}.
-Defaults to \code{FALSE}.}
 }
 \value{
 Returns a list that has components:
 \item{vec01}{Vectorized presence-absence data}
 \item{n.taxa}{The number of taxa in the template data.}
+\item{n.sample}{The sample size in the template data.}
 \item{ids}{Ids of taxa presenting in all samples in the template.}
 \item{tetra.corr}{The estimated tetrachoric correlation of presence-absence
 data of the template.}
 \item{corr.rel.corrected}{The estimated Pearson correlation of relative
 abundances, which is transformed from Spearman's rank correlation.}
 \item{taxa.names}{Names of taxa in the template.}
-\item{pbar}{The proportion of non-zeros for each subject.}
-\item{prop.1}{The proportion of non-zeros for each taxon.}
-\item{obs.rel.abund}{Observed mean relative abundances of each taxon.}
-\item{non.zero.rel}{The observed non-zero relative abundances of each taxon.}
+\item{sample.1.prop}{The proportion of non-zero cells for each subject.}
+\item{taxa.1.prop}{The proportion of non-zeros for each taxon.}
+\item{mean.rel.abund}{The observed mean relative abundances of each taxon.}
+\item{rel.abund.1}{The observed non-zero relative abundances of each taxon.}
 \item{n0}{The number of non-zeros for each taxon.}
 \item{alpha}{If requested, the estimated \code{alpha} parameter for beta
 distribution}
 \item{beta}{If requested, the estimated \code{beta} parameter for beta
 distribution}
-\item{scamfit.lib}{The fitted Shape constrained additive model (SCAM) for
-library size}
 }
 \description{
 Fitting MIDAS model to microbiome data

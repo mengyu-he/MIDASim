@@ -18,6 +18,15 @@ cal_corr = function(mat) {
   return(corr)
 }
 
+# calculate parameters of beta distribution for one taxon
+alpha_beta = function(x) {
+  x <- x[x > 0]
+  xbar <- mean(x)
+  s2 <- var(x)
+  alpha <- xbar*(xbar*(1 - xbar)/s2 - 1)
+  beta <- alpha*(1 - xbar)/xbar
+  c(alpha, beta)
+}
 
 # correct correlation to avoid negative eigenvalues
 correct_corr = function(mat) {
@@ -48,19 +57,41 @@ cal_tetra = function(x) {
   return(tetra.corr)
 }
 
-# adjust relative abundances iteratively
-adjust_iterative = function(rel.perm.f, lib.size){
-  for (i in 1:dim(rel.perm.f)[1]) {
-    x = rel.perm.f[i, ]
-    tmp = which( x < 1/lib.size[i] & x>0 )
-    while ( length(tmp)!=0 ) {
-      x[-tmp] = x[-tmp] * ( 1-(1/lib.size[i]*length(tmp) - sum(x[tmp]))/sum(x[-tmp]) )
-      x[tmp] = 1/lib.size[i]
-      tmp = which( x < 1/lib.size[i] & x>0 )
+# equation solver for mu and eta
+
+solver_mu_sigma = function(mu0, eta0, Ztotal, sample.1.prop, taxa.1.prop,
+                           ids.left, n.sample, n.rm) {
+  max.iter <- 100
+  s1 <- sum(sample.1.prop)
+  s2 <- sum(taxa.1.prop)
+  for (k in 1:max.iter) {
+    mu <- mu0
+    eta <- eta0
+
+    eta0 <- NULL
+    for (i in 1:n.sample) {
+      equa <- function(x) (sum(pnorm(mu - x))+n.rm)/Ztotal - sample.1.prop[i]/s1
+      eta0[i] <- pracma::fzero(fun = equa , x = c(-100,100), tol = 10^-10)$x
     }
-    rel.perm.f[i, ] = x
+
+    mu0 <- NULL
+    jj <- 1
+    for (j in ids.left) {
+      equa <- function(x) sum(pnorm(x - eta0))/Ztotal - taxa.1.prop[j]/s2
+      mu0[jj] <- pracma::fzero(fun = equa , x = c(-100,100), tol = 10^-10)$x
+      jj <- jj + 1
+    }
+
+    diff <- sum(c(abs(mu0-mu), abs(eta0-eta)))
+    if (diff < 10^-5 ){
+      break
+    }
   }
-  return(rel.perm.f)
+  return(list(mu0 = mu0, eta0 = eta0))
 }
+
+
+
+
 
 

@@ -7,10 +7,9 @@
 Midas.modify(
   fitted,
   lib.size = NULL,
-  rel.abund = NULL,
-  rel.abund.1 = NULL,
-  taxa.1.prop = NULL,
-  method.total0 = "scam"
+  mean.rel.abund = NULL,
+  mean.rel.abund.1 = NULL,
+  taxa.1.prop = NULL
 )
 }
 \arguments{
@@ -19,33 +18,26 @@ Midas.modify(
 \item{lib.size}{A numeric vector of pre-specified library sizes (the length
 should be equal to \code{n.sample} if specified).}
 
-\item{rel.abund}{A numeric vector of specified mean relative abundances for
-taxa (the length should be equal to \code{n.taxa} in \code{fitted}).}
+\item{mean.rel.abund}{A numeric vector of specified mean relative abundances
+for taxa (the length should be equal to \code{n.taxa} in \code{fitted}).}
 
-\item{rel.abund.1}{A numeric vector of specified mean relative abundances
+\item{mean.rel.abund.1}{A numeric vector of specified mean relative abundances
 among non-zero samples.}
 
 \item{taxa.1.prop}{A numeric vector of specified proportion of non-zeros for
-taxa (the length should be equal to \code{n.taxa} in \code{fitted}). Note,
-\code{rel.abund} and \code{taxa.1.prop} can not be manipulated simultaneously.}
-
-\item{method.total0}{The method to be used in obtaining the target total
-number of non-zeros. The default method "scam" fits a SCAM model to the
-presence-absence data using library sizes and taxa prevalences as predictors;
-the alternative "geometric" uses the geometric mean of the number of non-zeros
-predicted by target library sizes and taxa prevalences.}
-
-\item{n.sample}{The number of samples to simulate. Defaults to the number of
-samples in the template dataset.}
+taxa (the length should be equal to \code{n.taxa} in \code{fitted}). If the
+library sizes are given and \code{taxa.1.prop = 'same'}, the proportion of
+zero cells in each taxon will remain the same as in the template data.}
 }
 \value{
 Returns a list that updates and adds the following elements to the
 input list:
 \item{n.sample}{The target sample size in the simulation}
-\item{prop.1}{The updated taxa non-zero proportions}
+\item{lib.size}{The target library sizes in the simulation}
+\item{taxa.1.prop}{The updated taxa non-zero proportions}
+\item{sample.1.prop}{The updated proportion of non-zero cells for each subject.}
 \item{mu}{The mean values of the multivariate normal distribution in generating
 presence-absence data}
-\item{lib.size}{The target library sizes in the simulation}
 \item{eta}{The adjustment to be applied to samples in generating presence-
 absence data}
 }
@@ -65,11 +57,11 @@ fitted = Midas.setup(otu.tab)
 
 # modify library sizes
 fitted.modified <- Midas.modify(fitted,
-                                lib.size = sample(fitted$lib.size, nrow(otu.tab)) )
+                                lib.size = sample(fitted$lib.size, 2*nrow(otu.tab)) )
 
 # modify proportion of non-zeros in taxa
 fitted.modified <- Midas.modify(fitted,
-                                taxa.1.prop = sample(fitted$prop.1))
+                                taxa.1.prop = sample(fitted$taxa.1.prop))
 
 }
 \author{

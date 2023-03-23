@@ -6,31 +6,27 @@
 #' abundances). Rows are samples, columns are taxa.
 #' @param n.break.ties The number of replicates used to break ties when ranking
 #' relative abundances. Defaults to \code{100}.
-#' @param extra.shrink A logical indicating whether to apply extra shrinkage
-#' for the correlation matrix of presence-absence data by estimating \code{alpha}.
-#' Defaults to \code{FALSE}.
 #' @param fit.beta A logical indicating whether to fit a beta distribution for
 #' the relative abundance of each taxon. Defaults to \code{FALSE}.
 #' @return Returns a list that has components:
 #' \item{vec01}{Vectorized presence-absence data}
 #' \item{n.taxa}{The number of taxa in the template data.}
+#' \item{n.sample}{The sample size in the template data.}
 #' \item{ids}{Ids of taxa presenting in all samples in the template.}
 #' \item{tetra.corr}{The estimated tetrachoric correlation of presence-absence
 #' data of the template.}
 #' \item{corr.rel.corrected}{The estimated Pearson correlation of relative
 #' abundances, which is transformed from Spearman's rank correlation.}
 #' \item{taxa.names}{Names of taxa in the template.}
-#' \item{pbar}{The proportion of non-zeros for each subject.}
-#' \item{prop.1}{The proportion of non-zeros for each taxon.}
-#' \item{obs.rel.abund}{Observed mean relative abundances of each taxon.}
-#' \item{non.zero.rel}{The observed non-zero relative abundances of each taxon.}
+#' \item{sample.1.prop}{The proportion of non-zero cells for each subject.}
+#' \item{taxa.1.prop}{The proportion of non-zeros for each taxon.}
+#' \item{mean.rel.abund}{The observed mean relative abundances of each taxon.}
+#' \item{rel.abund.1}{The observed non-zero relative abundances of each taxon.}
 #' \item{n0}{The number of non-zeros for each taxon.}
 #' \item{alpha}{If requested, the estimated \code{alpha} parameter for beta
 #' distribution}
 #' \item{beta}{If requested, the estimated \code{beta} parameter for beta
 #' distribution}
-#' \item{scamfit.lib}{The fitted Shape constrained additive model (SCAM) for
-#' library size}
 #'
 #' @author Mengyu He
 #'
@@ -66,20 +62,18 @@ Midas.setup = function(otu.tab,
   n.sample <- nrow(mat01)
   n.taxa <- ncol(mat01)
 
-  if (all.equal(as.vector(obs.lib.size), rep(1, n.sample), tolerance = 10^-3 ) == TRUE) {
+  if ( isTRUE(all.equal(as.vector(obs.lib.size), rep(1, n.sample), tolerance = 10^-3 )) ) {
     message("The input matrix is a relative-abundance table.")
     only.rel <- TRUE
     fitted$only.rel <- TRUE
   }
 
-  if ( any( colSums(mat01) == n.sample ) ) {
-    ids <- which( colSums(mat01) == n.sample )
-  } else ids <- NULL
+  ids <- which( colSums(mat01) == n.sample )
 
   vec01 <- as.vector(mat01)
-  num.1 <- rowSums(mat01) # number of 1's of samples
-  prop.1 <- colMeans(mat01)    # proportion of 1's of taxa
-  obs.rel.abund <- colMeans(normalize_rel(otu.tab))    # mean relative abundance of taxa
+  sample.1.prop <- rowMeans(mat01) # proportion of 1's of samples
+  taxa.1.prop <- colMeans(mat01)    # proportion of 1's of taxa
+  mean.rel.abund <- colMeans(normalize_rel(otu.tab))    # mean relative abundance of taxa
 
   tetra.corr <- cal_tetra(mat01)
 
@@ -96,41 +90,24 @@ Midas.setup = function(otu.tab,
   fitted <- append(fitted, list(vec01 = vec01,
                                 n.taxa = n.taxa,
                                 n.sample = n.sample,
-                                num.1 = num.1,
                                 ids = ids,
                                 tetra.corr = tetra.corr,
-                                prop.1 = prop.1,
+                                sample.1.prop = sample.1.prop,
+                                taxa.1.prop = taxa.1.prop,
                                 corr.rel.corrected = corr.rel.corrected,
-                                obs.rel.abund = obs.rel.abund,
+                                mean.rel.abund = mean.rel.abund,
                                 taxa.names = colnames(otu.tab)) )
 
   if (fit.beta) {
-    alpha <- beta <- NULL
-    for (j in 1:n.taxa) {
-      tmp <- rel.tab[,j]
-      tmp <- tmp[tmp>0]
-      xbar <- mean(tmp)
-      s2 <- var(tmp)
-
-      alpha[j] <- xbar*(xbar*(1-xbar)/s2-1)
-      beta[j] <- alpha[j]*(1-xbar)/xbar
-    }
-
-    fitted <- append(fitted, list(alpha = alpha,
-                                 beta = beta) )
+    tmp = apply(rel.tab, 2, alpha_beta)
+    fitted <- append(fitted, list(alpha = tmp[1, ],
+                                  beta = tmp[2, ]) )
   }
 
-  non.zero.rel <- list()
-  n0 <- NULL
-  for (j in 1:n.taxa) {
-    tmp1 <- rel.tab[, j][which(rel.tab[,j]>0)]
-    non.zero.rel[[j]] <- tmp1
-    n0 <- c(n0, sum(mat01[,j]>0) )
-  }
-
-  fitted <- append(fitted, list(non.zero.rel = non.zero.rel,
+  rel.abund.1 <- apply(rel.tab, 2, function(x) x[x > 0])
+  n0 <- colSums(mat01)
+  fitted <- append(fitted, list(rel.abund.1 = rel.abund.1,
                                 n0 = n0))
-
 
   if ( is.null(fitted$only.rel) ){
     lib.size = obs.lib.size
