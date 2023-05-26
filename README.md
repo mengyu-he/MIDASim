@@ -20,7 +20,7 @@ devtools::install_local("MIDAS_0.1.0.tar.gz", dependencies = TRUE)
 A github installation is also available via
 
 ```{r}
-install_github("mengyu-he/MIDAS")
+devtools::install_github("mengyu-he/MIDAS")
 ```
 
 
