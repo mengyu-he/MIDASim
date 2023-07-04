@@ -159,7 +159,7 @@ Midas.modify = function(fitted,
     
     for (j in 1:n.taxa) {
       equa <- function(x) mean(fitted$rel.abund.1[[j]]^x) - mean.rel.abund.1[j]
-      a <- uniroot(equa , c(-1000,1000))$root
+      a <- pracma::fzero(fun = equa , x = 0)$x
       
       fitted$rel.abund.1[[j]] <- fitted$rel.abund.1[[j]]^a
     }
@@ -195,14 +195,12 @@ Midas.modify = function(fitted,
     Ztotal <- sum(predict(scamfit.0, data.frame(x1 = log10(rep(fitted$lib.size, n.taxa )),
                                                 x2 = pred.x2), type = "response"))
     
-    tmp.l <- -1
-    exeed.id <- NULL
-    while (tmp.l - length(exeed.id) != 0) {
-      tmp.l <- length(exeed.id)
-      
-      exeed.id <- (which(fitted$taxa.1.prop/sum(fitted$taxa.1.prop) > n.sample/Ztotal + 10^-10))
-      Ztotal <- sum(sample.1.ct) - sum(fitted$taxa.1.prop[exeed.id]/sum(fitted$taxa.1.prop)*sum(sample.1.ct) - n.sample)
-    }
+    tmp <- check_taxa(taxa.1.prop = fitted$taxa.1.prop, 
+                      n.sample = n.sample, 
+                      Ztotal = Ztotal)
+    
+    exeed.id <- tmp$exeed.id
+    Ztotal <- tmp$Ztotal
     
     if (length( exeed.id) >0) {
       fitted$ids <- union(fitted$ids, exeed.id)
@@ -216,12 +214,19 @@ Midas.modify = function(fitted,
                            sample.1.prop = fitted$sample.1.prop,
                            taxa.1.prop = fitted$taxa.1.prop,
                            ids.left = ids.left, n.sample = n.sample, n.rm = n.rm)
+    
     fitted$mu <- tmp[["mu0"]]
     fitted$eta <- tmp[["eta0"]]
   } else if (arg[1] == 1 && sum(arg[2:4]) == 0) {
     # only library sizes are changed
-    exeed.id <- (which(fitted$taxa.1.prop/sum(fitted$taxa.1.prop) > n.sample/sum(sample.1.ct) + 10^-10))
-    Ztotal <- sum(sample.1.ct) - sum(fitted$taxa.1.prop[exeed.id]/sum(fitted$taxa.1.prop)*sum(sample.1.ct) - n.sample)
+    
+    tmp <- check_taxa(taxa.1.prop = fitted$taxa.1.prop, 
+                      n.sample = n.sample, 
+                      Ztotal = sum(sample.1.ct))
+    
+    exeed.id <- tmp$exeed.id
+    Ztotal <- tmp$Ztotal
+    
     if (length( exeed.id) >0) {
       fitted$ids <- union(fitted$ids, exeed.id)
       ids.left <- (1:n.taxa)[-fitted$ids]
@@ -239,6 +244,7 @@ Midas.modify = function(fitted,
     
   } else if (arg[1] == 1) {
     # scaling for lib.sizes, but change taxa features
+    
     tmp = solver_mu_sigma( mu0 = fitted$mu, eta0 = rep(0, n.sample),
                            Ztotal = sum(fitted$taxa.1.prop)*n.sample,
                            sample.1.prop = fitted$sample.1.prop,

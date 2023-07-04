@@ -7,14 +7,14 @@ normalize_rel = function(x) {
 
 # calculate correlation
 cal_corr = function(mat) {
-
+  
   mat.centered <- t( t(mat) - colMeans(mat) )
   cov <- t(mat.centered) %*% mat.centered / nrow(mat)
   var <- diag(cov)
   sigma <- sqrt(var)
   corr <- t(1/sigma * t( 1/sigma*cov ))
   diag(corr) <- 1
-
+  
   return(corr)
 }
 
@@ -50,10 +50,10 @@ cal_tetra = function(x) {
   pmin <- ifelse(p1plus < pplus1, p1plus, pplus1)
   c <- (1 - abs(p1plus - pplus1)/5 - (0.5-pmin)^2 )/2
   rho <- cos(pi/(1+omega^c))
-
+  
   tetra.corr <- matrix(rho, nrow = ncol(x), ncol = ncol(x))
   diag(tetra.corr) <- 1
-
+  
   return(tetra.corr)
 }
 
@@ -67,21 +67,21 @@ solver_mu_sigma = function(mu0, eta0, Ztotal, sample.1.prop, taxa.1.prop,
   for (k in 1:max.iter) {
     mu <- mu0
     eta <- eta0
-
+    
     eta0 <- NULL
     for (i in 1:n.sample) {
       equa <- function(x) (sum(pnorm(mu - x))+n.rm)/Ztotal - sample.1.prop[i]/s1
-      eta0[i] <- pracma::fzero(fun = equa , x = c(-100,100), tol = 10^-10)$x
+      eta0[i] <- pracma::fzero(fun = equa , x = 0, tol = 10^-10)$x
     }
-
+    
     mu0 <- NULL
     jj <- 1
     for (j in ids.left) {
       equa <- function(x) sum(pnorm(x - eta0))/Ztotal - taxa.1.prop[j]/s2
-      mu0[jj] <- pracma::fzero(fun = equa , x = c(-100,100), tol = 10^-10)$x
+      mu0[jj] <- pracma::fzero(fun = equa , x = 0, tol = 10^-10)$x
       jj <- jj + 1
     }
-
+    
     diff <- sum(c(abs(mu0-mu), abs(eta0-eta)))
     if (diff < 10^-5 ){
       break
@@ -90,7 +90,21 @@ solver_mu_sigma = function(mu0, eta0, Ztotal, sample.1.prop, taxa.1.prop,
   return(list(mu0 = mu0, eta0 = eta0))
 }
 
-
+check_taxa = function(taxa.1.prop, n.sample, Ztotal) {
+  
+  tmp <- -1
+  exeed.id <- NULL
+  
+  while(tmp - length(exeed.id) != 0) {
+    exeed.id <- (which(taxa.1.prop/sum(taxa.1.prop) > n.sample/Ztotal + 10^-10))
+    Ztotal <- Ztotal - sum(taxa.1.prop[exeed.id]/sum(taxa.1.prop)*Ztotal - n.sample)
+    
+    tmp <- length(exeed.id)
+  }
+  
+  return(list(exeed.id = exeed.id, Ztotal = Ztotal ))
+  
+}
 
 
 
