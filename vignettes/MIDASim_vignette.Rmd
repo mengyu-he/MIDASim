@@ -1,26 +1,58 @@
-# MIDASim: a fast and simple simulator for realistic microbiome data
+---
+title: "MIDASim package vignette"
+output: 
+  rmarkdown::html_vignette:
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{MIDASim_vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
 
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+});
+</script>
+\newcommand{\tex}[1]{#1}
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE, 
+  warning = FALSE,
+  eval = FALSE)
+```
+
+```{r load package, echo=FALSE}
+library(MIDASim)
+library(MASS)
+library(psych, quietly = TRUE)
+library(scam, quietly = TRUE)
+library(pracma, quietly = TRUE)
+library(vegan, quietly = TRUE)
+```
 
 # Overview
 
-The MIDASim package (v0.1.0) implements the **MI**crobiome **DA**ta **S**imulator functions that simulate realistic microbiome data, maintaining the distributional and taxon-taxon correlation of a template microbiome dataset. Users may also change the parameter setup in the model to introduce ``effect'' to facilitate simulation.  
+The MIDASim package (v0.1.0) implements the **MI**crobiome **DA**ta **Sim**ulator functions that simulate realistic microbiome data, maintaining the distributional and taxon-taxon correlation of a template microbiome datase. Users may also change the parameter setup in the model to introduce ``effect'' to facilitate simulation.  
 
 ## Required packages 
 
-Required packages for functions in MIDASim include: psych, MASS, vegan, pracma. These packages are all available on CRAN.
+Required packages for functions in MIDASim include: psych, MASS, vegan, pracma, scam. These packages are all available on CRAN.
 
 ## Installation
 
 Install from the local file (the .tar.gz file), which you can download from https://github.com/mengyu-he/MIDASim.
 
 ```{r}
-devtools::install_local("MIDAS_0.1.0.tar.gz", dependencies = TRUE)
+devtools::install_local("MIDASim_0.1.0.tar.gz", dependencies = TRUE)
 ```
 
 A github installation is also available via
 
 ```{r}
-devtools::install_github("mengyu-he/MIDASim")
+install_github("mengyu-he/MIDASim")
 ```
 
 
@@ -33,7 +65,7 @@ browseVignettes("MIDASim")
 or
 
 ```{r}
-vignette("MIDAS_vignette", package = "MIDASim")
+vignette("MIDASim_vignette", package = "MIDASim")
 ```
 
 
@@ -304,3 +336,4 @@ summary(simulated.data)
 [1] Lloyd-Price, J., Arze, C., Ananthakrishnan, A.N. *et al*. Multi-omics of the gut microbial ecosystem in inflammatory bowel diseases. *Nature* 569, 655–662 (2019). https://doi.org/10.1038/s41586-019-1237-9.
 
 [2] Charlson, E.S., Chen, J., Custers-Allen, R. *et al*. Disordered microbial communities in the upper respiratory tract of cigarette smokers. *PloS one*, 5(12), e15216 (2010). https://doi.org/10.1371/journal.pone.0015216
+

@@ -2,54 +2,60 @@
 #'
 #' Generate microbiome datasets using parameters from Midas.modify.
 #'
-#' @param fitted.modified An output from Midas.modify
+#' @param fitted.modified Output from Midas.modify
 #' @param only.rel A logical indicating whether to only simulate relative-
 #' abundance data. If \code{TRUE}, then the count data will not be generated.
 #' Defaults to \code{FALSE}.
 #' @return Returns a list that has components:
-#' \item{sim_01}{A matrix of simulated presence-absence data}
-#' \item{sim_rel}{A matrix of simulated relative-abundance data}
-#' \item{sim_count}{A matrix of simulated count data}
+#' \item{sim_01}{Matrix of simulated presence-absence data}
+#' \item{sim_rel}{Matrix of simulated relative-abundance data}
+#' \item{sim_count}{Matrix of simulated count data}
 #'
 #' @author Mengyu He
 #'
 #' @examples
-#' library(GUniFrac)
+#'
 #' data("throat.otu.tab")
 #' otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 #'
-#' fitted = Midas.setup(otu.tab)
-#' fitted.modified = Midas.modify(fitted)
-#' simu = Midas.sim(fitted.modified, only.rel = FALSE)
+#' fitted = MIDASim.setup(otu.tab)
+#' fitted.modified = MIDASim.modify(fitted)
+#' sim = MIDASim(fitted.modified, only.rel = FALSE)
+#' View(sim[["sim_rel"]])
 #'
 #' @export
-Midas.sim = function(fitted.modified, only.rel = FALSE) {
+MIDASim = function(fitted.modified, only.rel = FALSE) {
 
   n.taxa <- fitted.modified$n.taxa
   n.sample <- fitted.modified$n.sample
-  mu <- fitted.modified$mu
-  only.rel <- ifelse(is.null(fitted.modified$only.rel), only.rel, fitted.modified$only.rel)
+  theta <- fitted.modified$theta
+  fitted.modified$mu.est = -fitted.modified$mu.est     # mu is now (-mu)
 
-  if (length(fitted.modified$ids) == 0) {
-    mvn <- MASS::mvrnorm(n = n.sample , mu,
+  ids <- union(fitted.modified$zero.id, fitted.modified$one.id)
+  if (length(ids) == 0) {
+    mvn <- MASS::mvrnorm(n = n.sample , theta,
                          Sigma = suppressWarnings(psych::cor.smooth(fitted.modified$tetra.corr)),
                          tol = 10^-8 )
+    if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
     sim_01 <- ifelse( mvn >= fitted.modified$eta, 1, 0)
   } else {
-    tetra.corr <- fitted.modified$tetra.corr[-fitted.modified$ids, -fitted.modified$ids]
-    mvn <- MASS::mvrnorm(n = n.sample , mu,
+    tetra.corr <- fitted.modified$tetra.corr[-ids, -ids]
+    mvn <- MASS::mvrnorm(n = n.sample , theta,
                          Sigma = suppressWarnings(psych::cor.smooth(tetra.corr)),
                          tol = 10^-8 )
+    if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
     sim_01 <- matrix(1, nrow = n.sample, ncol = n.taxa)
-    sim_01[ , -fitted.modified$ids ] <- ifelse( mvn >= fitted.modified$eta, 1, 0)
+    sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= fitted.modified$eta, 1, 0)
+    sim_01[ ,fitted.modified$zero.id ] <- 0
   }
 
   mvn <- MASS::mvrnorm(n = n.sample, mu = rep(0, n.taxa),
                        fitted.modified$corr.rel.corrected, tol = 10^(-10))
+  if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
 
-  if (is.null(fitted.modified$alpha)) {
+  if ( fitted.modified$mode == 'nonparametric' ) {
+
     rel.sim <- matrix(NA, nrow = n.sample, ncol = n.taxa)
-    n0 <- lengths(fitted.modified$rel.abund.1)
     for (j in 1:n.taxa) {
       tmp.rank <- rep(NA, n.sample)
 
@@ -61,7 +67,7 @@ Midas.sim = function(fitted.modified, only.rel = FALSE) {
 
       n1 <- sum(sim_01[, j])        # number of 1's in simulated 0/1 from step 1
 
-      n2 <- n0[j]            # number of 1's in the original
+      n2 <- length(fitted.modified$rel.abund.1[[j]])            # number of 1's in the original
 
       ## tmp1: non-zero relative abundances for taxon j
       tmp1 <- fitted.modified$rel.abund.1[[j]]
@@ -79,14 +85,23 @@ Midas.sim = function(fitted.modified, only.rel = FALSE) {
         rel.sim[, j] <- sort(tmp2)[tmp.rank]
       }
     }
-
   } else {
-    rel.sim <- matrix(0, nrow = n.sample, ncol = n.taxa)
-    for (j in 1: n.taxa) {
-      tmp <- rbeta(sum(sim_01[,j]), fitted.modified$alpha[j], fitted.modified$beta[j])
-      rel.sim[sim_01[,j]==1,j] <- sort(tmp)[rank(mvn[sim_01[,j]==1, j],
-                                                ties.method = "random")]
+
+    rel.sim = matrix(0, nrow = n.sample, ncol = n.taxa)
+    for (j in 1:n.taxa) {
+      params <- list(fitted.modified$mu.est[j],
+                     fitted.modified$sigma.est[j],
+                     fitted.modified$Q.est[j])
+      p_left <- 0
+      p_right <- p.gen.gamma(fitted.modified$lib.size, params = params)
+
+      n1 <- sum(sim_01[, j])
+      u <- runif(n1, p_left, p_right)
+
+      rel.sim[sim_01[,j] == 1,j] <- sort(q.gen.gamma( 1 - u, params = params)$pi)[rank(mvn[sim_01[,j]==1, j],
+                                                                                       ties.method = "random")]
     }
+    fitted.modified$mu.est = -fitted.modified$mu.est
   }
 
   sim_rel <- normalize_rel(rel.sim)
