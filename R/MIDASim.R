@@ -29,7 +29,6 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
   n.taxa <- fitted.modified$n.taxa
   n.sample <- fitted.modified$n.sample
   theta <- fitted.modified$theta
-  fitted.modified$mu.est = -fitted.modified$mu.est     # mu is now (-mu)
 
   ids <- union(fitted.modified$zero.id, fitted.modified$one.id)
   if (length(ids) == 0) {
@@ -87,6 +86,7 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
     }
   } else {
 
+    fitted.modified$mu.est = -fitted.modified$mu.est     # mu is now (-mu)
     rel.sim = matrix(0, nrow = n.sample, ncol = n.taxa)
     for (j in 1:n.taxa) {
       params <- list(fitted.modified$mu.est[j],
