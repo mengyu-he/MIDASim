@@ -21,8 +21,8 @@
 #' fitted = MIDASim.setup(otu.tab)
 #' fitted.modified = MIDASim.modify(fitted)
 #' sim = MIDASim(fitted.modified, only.rel = FALSE)
-#' View(sim[["sim_rel"]])
 #'
+#' @importFrom stats runif
 #' @export
 MIDASim = function(fitted.modified, only.rel = FALSE) {
 
@@ -93,13 +93,15 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
                      fitted.modified$sigma.est[j],
                      fitted.modified$Q.est[j])
       p_left <- 0
-      p_right <- p.gen.gamma(fitted.modified$lib.size, params = params)
+      ind <- which(sim_01[,j] == 1)
+      p_right <- p.gen.gamma(fitted.modified$lib.size[ind],
+                             params = params)
 
       n1 <- sum(sim_01[, j])
       u <- runif(n1, p_left, p_right)
 
-      rel.sim[sim_01[,j] == 1,j] <- sort(q.gen.gamma( 1 - u, params = params)$pi)[rank(mvn[sim_01[,j]==1, j],
-                                                                                       ties.method = "random")]
+      rel.sim[ind, j] <- sort(q.gen.gamma( u, params = params)$pi)[rank(mvn[ind, j],
+                                                                        ties.method = "random")]
     }
     fitted.modified$mu.est = -fitted.modified$mu.est
   }
@@ -113,7 +115,7 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
   } else {
 
     sim_count <- sim_rel*fitted.modified$lib.size
-    sim_count <- ifelse(sim_count>0 & sim_count<1, 1, round(sim_count) )
+    sim_count <- ifelse(sim_01 == 1 & sim_count < 1, 1, round(sim_count) )
 
     sim_rel <- normalize_rel(sim_count)
 

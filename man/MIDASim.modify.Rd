@@ -8,14 +8,17 @@ MIDASim.modify(
   fitted,
   lib.size = NULL,
   mean.rel.abund = NULL,
-  gengamma.mu = NULL
+  gengamma.mu = NULL,
+  sample.1.prop = NULL,
+  taxa.1.prop = NULL
 )
 }
 \arguments{
 \item{fitted}{Output from Midas.setup.}
 
 \item{lib.size}{Numeric vector of pre-specified library sizes (length should
-be equal to \code{n.sample} if specified).}
+be equal to \code{n.sample} if specified). In nonparametric mode, if \code{lib.size}
+is specified, both \code{taxa.1.prop} and \code{sample.1.prop} should be specified.}
 
 \item{mean.rel.abund}{Numeric vector of specified mean relative abundances for
 taxa. Length should be equal to \code{n.taxa} in \code{fitted}.}
@@ -23,7 +26,15 @@ taxa. Length should be equal to \code{n.taxa} in \code{fitted}.}
 \item{gengamma.mu}{Numeric vector of specified location parameters for the
 parametric model (generalized gamma model). Specify either \code{mean.rel.abund}
 or \code{gengamma.mu}, not both. Length should be equal to \code{n.taxa} in \code{fitted}.
-See Details.}
+See Details. This argument is only applicable in parametric mode.}
+
+\item{sample.1.prop}{Numeric vector of specified proportion of non-zeros for
+subjects (the length should be equal to \code{n.sample} in \code{fitted}). This
+argument is only applicable in nonparametric mode.}
+
+\item{taxa.1.prop}{Numeric vector of specified proportion of non-zeros for
+taxa (the length should be equal to \code{n.taxa} in \code{fitted}). This argument
+is only applicable in nonparametric mode.}
 }
 \value{
 Returns an updated list with different elements depending on the value
@@ -36,9 +47,6 @@ of \code{fitted$mode}:
 presence-absence data.}
 \item{eta}{Adjustment to be applied to samples in generating presence-
 absence data.}
-\item{mu.est}{Estimated location parameters for the parametric model.}
-\item{sigma.est}{Estimated scale parameters for the parametric model.}
-\item{Q.est}{Estimated scale parameters for the parametric model.}
 }
 \description{
 Midas.modify modifies the fitted MIDAS.setup model according to user
@@ -67,8 +75,8 @@ fitted = MIDASim.setup(otu.tab, mode = 'parametric')
 
 # modify library sizes
 fitted.modified <- MIDASim.modify(fitted,
-                                  lib.size = sample(fitted$lib.size,
-                                                    2*nrow(otu.tab)) )
+                                  lib.size = sample(fitted$lib.size, 2*nrow(otu.tab),
+                                                    replace = TRUE) )
 
 # modify mean relative abundances
 fitted.modified <- MIDASim.modify(fitted,

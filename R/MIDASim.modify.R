@@ -55,8 +55,8 @@
 #'
 #' # modify library sizes
 #' fitted.modified <- MIDASim.modify(fitted,
-#'                                   lib.size = sample(fitted$lib.size,
-#'                                                     2*nrow(otu.tab)) )
+#'                                   lib.size = sample(fitted$lib.size, 2*nrow(otu.tab),
+#'                                                     replace = TRUE) )
 #'
 #' # modify mean relative abundances
 #' fitted.modified <- MIDASim.modify(fitted,
@@ -65,6 +65,7 @@
 #' fitted.modified <- MIDASim.modify(fitted,
 #'                                   gengamma.mu = fitted$mean.rel.abund * runif(fitted$n.taxa))
 #'
+#' @importFrom stats qnorm
 #' @export
 MIDASim.modify = function(fitted,
                           lib.size = NULL,
@@ -137,10 +138,9 @@ MIDASim.modify = function(fitted,
 
     sample.1 = rowSums(fitted$prob01.mat)
     taxa.1 = colSums(fitted$prob01.mat)
-
     fitted$sample.1.prop = sample.1/n.taxa
     fitted$taxa.1.prop = taxa.1/n.sample
-    Ztotal =  sum(fitted$prob01.mat)
+    Ztotal = sum(fitted$prob01.mat)
 
     fitted$mu.est = -fitted$mu.est
   }
@@ -154,7 +154,7 @@ MIDASim.modify = function(fitted,
 
   if (length(fitted$one.id) + length(fitted$zero.id) > 0) {
     ids.left <- (1:n.taxa)[-union(fitted$one.id, fitted$zero.id)]
-    n.rm <- n.taxa - length(ids.left)
+    n.rm <- length(fitted$one.id)
     fitted$theta <- qnorm(fitted$taxa.1.prop[ids.left])
     fitted$ids.left <- ids.left
   } else {
@@ -163,12 +163,12 @@ MIDASim.modify = function(fitted,
     fitted$ids.left <- (1:n.taxa)
   }
 
-  tmp = solver_mu_sigma( mu0 = fitted$theta, eta0 = rep(0, n.sample),
-                         Ztotal = Ztotal,
-                         sample.1.prop = fitted$sample.1.prop,
-                         taxa.1.prop = fitted$taxa.1.prop,
-                         ids.left = fitted$ids.left, n.sample = n.sample, n.rm = n.rm)
-  fitted$theta <- tmp[["mu0"]]
+  tmp = solver_theta_eta( theta0 = fitted$theta, eta0 = rep(0, n.sample),
+                          Ztotal = Ztotal,
+                          sample.1.prop = fitted$sample.1.prop,
+                          taxa.1.prop = fitted$taxa.1.prop,
+                          ids.left = fitted$ids.left, n.sample = n.sample, n.rm = n.rm)
+  fitted$theta <- tmp[["theta0"]]
   fitted$eta <- tmp[["eta0"]]
 
   return(fitted)

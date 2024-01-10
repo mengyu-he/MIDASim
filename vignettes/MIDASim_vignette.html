@@ -381,7 +381,7 @@ R</h2>
 Data Simulator</h1>
 <p>There are three main functions in MIDASim package:
 <em>MIDASim.setup()</em>, <em>MIDASim.modify()</em>,
-<em>MIDASim</em>.</p>
+<em>MIDASim()</em>.</p>
 <div id="template-data-description" class="section level2" number="2.1">
 <h2><span class="header-section-number">2.1</span> Template data
 description</h2>
@@ -412,21 +412,30 @@ model</h2>
 <p>The function <em>MIDASim.setup()</em> fits the underlying MIDASim
 model and extracts information from the template data and returns the
 estimated parameters for microbiome simulation. MIDASim offers two
-modeling options for relative abundances: nonparametric and
-parametric.</p>
+modeling options for relative abundances: nonparametric and parametric.
+Both approaches utilize a two-stage procedure in which the first stage
+models the presence-absence relationship between taxa and the second
+stage models the non-zero values in the microbiome community. These two
+approaches differ by the way how the second stage marginal distributions
+are modeled. The nonparametric approach generates data that resemble the
+template data better than the parametric approach. However, the
+parametric approach offers modifications of the template data in more
+controlled way.</p>
 <p>In nonparametric mode (the default), a rank based approach is used to
 obtain the relative abundances for taxa that are considered to be
 non-zero in the simulated data.</p>
 <p>To fit MIDASim with nonparametric mode to the <em>count.ibd</em>
 data, use the following command:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>count.ibd.setup <span class="ot">=</span> <span class="fu">MIDASim.setup</span>(otu.tab, <span class="at">mode =</span> <span class="st">&#39;nonparametric&#39;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>count.ibd.setup <span class="ot">=</span> <span class="fu">MIDASim.setup</span>(otu.tab, <span class="at">mode =</span> <span class="st">&#39;nonparametric&#39;</span>, <span class="at">n.break.ties =</span> <span class="dv">10</span>)</span></code></pre></div>
+<p>The argument <code>n.break.ties</code> specifies the number of
+replicates used to break ties when ranking relative abundances for each
+taxon, and the default is <code>n.break.ties = 100</code>.</p>
 <p>In parametric mode, MIDASim fits the generalized gamma model, a
 three-parameter distribution in the location-scale family that was
 proposed for analyzing right-censored survival data to the relative
-abundance data of each taxon separately. Denote the simulated relative
-abundance for <span class="math inline">\(i\)</span>-th subject and
-<span class="math inline">\(j\)</span>-th taxon as _{ij}. We define
-``survival time’’ <span class="math display">\[\begin{equation}
+abundance data of each taxon separately.</p>
+<p>Denote the simulated relative abundance for <span class="math inline">\(i\)</span>-th subject and <span class="math inline">\(j\)</span>-th taxon as <span class="math inline">\(\tilde{\pi}_{ij}\)</span>. We define ``survival
+time’’ <span class="math display">\[\begin{equation}
 \label{eq:survivalTime}
     \tilde{t}_{ij} =
     \begin{cases}
@@ -441,37 +450,14 @@ specified by <span class="math display">\[\begin{equation}\label{eq:logLinear}
 \ln(\tilde{t}_{ij}) =- \mu_j + s_j\sigma_j \cdot \omega_{ij}~,
 \end{equation}\]</span> where <span class="math inline">\(e^{\omega_{ij}}\)</span> follows a gamma
 distribution with shape parameter <span class="math inline">\(k_j =
-1/|Q_j|\)</span> and scale parameter 1 and where and <span class="math inline">\(s_j=\text{sign}(Q_j)\)</span>}. The negative sign
-on <span class="math inline">\(\mu_j\)</span> in <span class="math inline">\(\eqref{eq:logLinear}\)</span> is chosen to ensure
-that the sign of <span class="math inline">\(\mu_j\)</span> is positive
-in a log-linear model for <span class="math inline">\(\widetilde{\pi}_{ij}\)</span>. This log-linear
-model is derived by using Equation <span class="math inline">\(\eqref{eq:survivalTime}\)</span> in Equation <span class="math inline">\(\eqref{eq:logLinear}\)</span>.</p>
-<p>The resulting cumulative distribution function of <span class="math inline">\(\tilde{t}_{1j},\cdots, \tilde{t}_{nj}\)</span> is
-<span class="math display">\[\begin{equation}\label{eq:GGcdf}
-F_j(t; \mu_j, \sigma_j, Q_j) \begin{cases}
-\frac{I\left(k_j, e^{\omega_j(t)}\right)}{\Gamma(k_j)}, \quad &amp;
-Q_j&gt;0
-\\
-\Phi\left(\omega_j(t)\right),\quad &amp; Q_j=0
-\\
-1-\frac{I\left(k_j, e^{\omega_j(t)}\right)}{\Gamma(k_j)}, \quad &amp;
-Q_j&lt;0
-\end{cases}
-\end{equation}\]</span></p>
-<p>where <span class="math inline">\(\omega_j(t) = \frac{\ln (t) +
-\mu_j}{\sigma_j}\)</span>, <span class="math inline">\(I(s, x)\)</span>
-is the lower incomplete gamma function, <span class="math inline">\(I(s,
-x) = \int_0^x u^{s-1}e^{-u}du\)</span>, and <span class="math inline">\(\Gamma(\cdot)\)</span> is the gamma function. Note
-that log-normal distribution is a special case of the generalized gamma
-distribution with the scale parameter <span class="math inline">\(Q=0\)</span>.</p>
-<p>The three parameters <span class="math inline">\(\mu, \sigma,
-Q\)</span> are estimated in <em>MIDASim.setup()</em>.</p>
+1/|Q_j|\)</span> and scale parameter 1, and <span class="math inline">\(s_j=\text{sign}(Q_j)\)</span>}.</p>
+<p>We estimate the three parameters <span class="math inline">\(\mu_j,
+\sigma_j, Q_j\)</span> in <em>MIDASim.setup()</em> using the relative
+abundances <span class="math inline">\(\pi_j\)</span> in the
+template.</p>
 <p>To fit MIDASim in parametric mode to the count.ibd data, use the
 following command:</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>count.ibd.setup <span class="ot">=</span> <span class="fu">MIDASim.setup</span>(otu.tab, <span class="at">mode =</span> <span class="st">&#39;parametric&#39;</span>)</span></code></pre></div>
-<p>The argument <code>n.break.ties</code> in <em>MIDASim.setup()</em>
-specifies he number of replicates used to break ties when ranking
-relative abundances for each taxon.</p>
 <p>The returned values of <em>MIDASim.setup()</em> include the estimated
 tetrachoric correlation of observed presence-absence data
 (<code>tetra.corr</code>), the estimated Pearson correlation of observed
@@ -490,8 +476,8 @@ of the generalized gamma distribution (<code>mu.est</code>,
 MIDASim model</h2>
 <p>The function <em>MIDASim.modify()</em> sets up quantities required to
 simulate data using MIDAS. This function also allows users to modify
-library sizes, taxon relative abundances, the location parameters in the
-parametric model, taxon proportion of non-zero cells, number of samples.
+library sizes, taxa relative abundances, the location parameters in the
+parametric model, taxa proportion of non-zero cells, number of samples.
 Note that this is a <strong>required</strong> step even if no adjustment
 is made.</p>
 <div id="no-modification-at-all" class="section level3" number="2.3.1">
@@ -510,72 +496,78 @@ same as that of the template. The following code is an example.</p>
 a wide range of simulation scenarios, separately for the nonparametric
 and parametric modes.</p>
 </div>
-<div id="nonparametric-mode" class="section level3" number="2.3.2">
-<h3><span class="header-section-number">2.3.2</span> nonparametric
-mode</h3>
-<p>If the nonparametric mode is chosen in <em>MIDASim.setup()</em>, then
-the user are able to modify the sample size, library sizes, taxon
-relative abundances, taxon proportion of non-zero cells.</p>
+<div id="model-modification-in-nonparametric-mode" class="section level3" number="2.3.2">
+<h3><span class="header-section-number">2.3.2</span> Model modification
+in nonparametric mode</h3>
+<p>We provide options for modifying the model under the nonparametric
+mode. However, it’s important to note that such modifications may not be
+as controlled as in parametric mode. For example, if we wish to change
+the library sizes of certain observations or the relative abundances of
+various taxa, it is not clear how the proportion of non-zero taxa should
+change in the nonparametric mode.</p>
+<p>In nonparametric mode, users are able to modify the sample size,
+library sizes, taxa relative abundances, taxa proportion of non-zero
+cells.</p>
 <div id="modify-the-number-of-samples-and-their-library-sizes" class="section level4" number="2.3.2.1">
 <h4><span class="header-section-number">2.3.2.1</span> Modify the number
 of samples and their library sizes</h4>
 <p>To change the library sizes, set the <code>lib.size</code> argument
-equal to a vector with the target library sizes. The length of this
-vector becomes the new number of samples.</p>
-<p>Please note that if you intend to modify the library sizes,
-determining how the proportion of non-zero taxa should change can be
-challenging in a nonparametric model. However, it is generally observed
-that larger library sizes are associated with fewer zero cells.</p>
-<p>Note that, if we wish to change the library sizes, it is not clear
-how the proportion of non-zero taxa should change because of the model
-is nonparametric. However, larger library sizes are typically
-accompanied by fewer zero cells. Therefore, <em>MIDASim.modify()</em>
+equal to a vector with the target library sizes. The number of samples
+can be modified implicitly by specifying library sizes with a vector
+length equal to the desired sample size.</p>
+<p>Note that, if we wish to change the library sizes, the proportion of
+non-zero taxa would also change. Typically, larger library sizes are
+accompanied by fewer zero cells. However, since the model is
+nonparametric, there is no simple parametric relationship between the
+changes in zero cells and relative abundances. <em>MIDASim.modify()</em>
 requires the user to specify the marginal totals of non-zeros together
-when a change in <code>lib.size</code> is made. The quantities should be
-transformed to marginal proportions and given by the arguments
-<code>sample.1.prop</code> and <code>taxa.1.prop</code>.</p>
+when a change in <code>lib.size</code> is made. This can be achieved by
+providing the marginal proportions using the <code>sample.1.prop</code>
+and <code>taxa.1.prop</code> arguments within the function.”</p>
 <p>An example way determine the appropriate number of non-zero cells for
 the new library size is to fit a Shape Constrained Additive model (SCAM)
 model <span class="math display">\[ log10(Z_{i.}) =
 f\left(log_{10}(N_{i})\right)+\epsilon_i\]</span> where <span class="math inline">\(f\)</span> is a monotone smoothing spline, <span class="math inline">\(Z_{i\cdot}\)</span> is the number of non-zero
-cells in each sample. Then adjust the number of non-zero cells for each
-taxon accordingly to satisfy the constraint that product of
-‘sample.1.prop’ and number of taxa should equal the product of
-‘taxa.1.prop’ and number of samples,</p>
+cells in each sample, <span class="math inline">\(\epsilon_i\)</span> is
+the error term. We could adjust the number of non-zero cells for each
+taxon in a way that satisfies the constraint that the product of
+<code>sample.1.prop</code> and the number of taxa should be equal to the
+product of <code>taxa.1.prop</code> and the number of samples,</p>
 <p><span class="math display">\[Z_{i.}\times J = Z_{.j}\times
 n\]</span></p>
-<p>For example, to generate data having library sizes that are uniformly
+<p>For example, if we want to generate data with library sizes uniformly
 distributed between 1,000 and 10,000 while changing the number of
 samples to 700 and allowing the proportion of non-zero cells to adjust
-according the the SCAM model, we first generate the marginal totals of
-non-zero cells by</p>
+according to the SCAM model, we can start by generating the marginal
+totals of non-zero cells and transforming the totals to proportions
+using the following:</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>new.lib.size <span class="ot">=</span> <span class="fu">sample</span>(<span class="dv">1000</span><span class="sc">:</span><span class="dv">10000</span>, <span class="at">size=</span><span class="dv">700</span>, <span class="at">replace=</span>T)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>obs.sample.<span class="fl">1.</span>ct <span class="ot">=</span> <span class="fu">rowSums</span>(count.ibd <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>xvar <span class="ot">=</span> <span class="fu">log10</span>(<span class="fu">rowSums</span>(count.ibd))</span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>scamfit.non0 <span class="ot">=</span> scam<span class="sc">::</span><span class="fu">scam</span>( <span class="fu">log10</span>(obs.sample.<span class="fl">1.</span>ct) <span class="sc">~</span>  <span class="fu">s</span>( xvar, <span class="at">bs =</span> <span class="st">&quot;mpi&quot;</span> ))</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>sample.<span class="fl">1.</span>ct <span class="ot">=</span> <span class="dv">10</span><span class="sc">^</span>(<span class="fu">predict</span>(scamfit.non0,</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>                           <span class="at">newdata =</span> <span class="fu">data.frame</span>(<span class="at">xvar =</span> <span class="fu">log10</span>(lib.size) )) )</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>n.taxa <span class="ot">=</span> <span class="fu">ncol</span>(count.ibd)</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>new.sample.<span class="fl">1.</span>prop <span class="ot">=</span> <span class="fu">pmin</span>(sample.<span class="fl">1.</span>ct, n.taxa)<span class="sc">/</span>n.taxa</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>new.taxa.<span class="fl">1.</span>prop <span class="ot">=</span> fitted<span class="sc">$</span>taxa.<span class="fl">1.</span>prop <span class="sc">*</span> (<span class="fu">sum</span>(new.sample.<span class="fl">1.</span>prop) <span class="sc">*</span> n.taxa <span class="sc">/</span> <span class="dv">700</span>) <span class="sc">/</span> <span class="fu">sum</span>(fitted<span class="sc">$</span>taxa.<span class="fl">1.</span>prop)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">lib.size =</span> new.lib.size,</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sample.1.prop =</span> new.sample.<span class="fl">1.</span>prop,</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">taxa.1.prop =</span> new.taxa.<span class="fl">1.</span>prop)</span></code></pre></div>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>                           <span class="at">newdata =</span> <span class="fu">data.frame</span>(<span class="at">xvar =</span> <span class="fu">log10</span>(new.lib.size) )) )</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>n.taxa <span class="ot">=</span> <span class="fu">ncol</span>(count.ibd)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>new.sample.<span class="fl">1.</span>prop <span class="ot">=</span> sample.<span class="fl">1.</span>ct<span class="sc">/</span>n.taxa</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>new.taxa.<span class="fl">1.</span>prop <span class="ot">=</span> fitted<span class="sc">$</span>taxa.<span class="fl">1.</span>prop <span class="sc">*</span> (<span class="fu">sum</span>(new.sample.<span class="fl">1.</span>prop) <span class="sc">*</span> n.taxa <span class="sc">/</span> <span class="dv">700</span>) <span class="sc">/</span> <span class="fu">sum</span>(fitted<span class="sc">$</span>taxa.<span class="fl">1.</span>prop)</span></code></pre></div>
+<p>Then we can use <em>MIDASim.modify()</em> by</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">lib.size =</span> new.lib.size,</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sample.1.prop =</span> new.sample.<span class="fl">1.</span>prop,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">taxa.1.prop =</span> new.taxa.<span class="fl">1.</span>prop)</span></code></pre></div>
 </div>
-<div id="modify-taxa-features-by-mean-relative-abundances-or-proportion-of-non-zero-cells" class="section level4" number="2.3.2.2">
-<h4><span class="header-section-number">2.3.2.2</span> Modify taxa
-features by mean relative abundances or proportion of non-zero
-cells</h4>
+<div id="modify-features-of-taxa-by-mean-relative-abundances-or-proportion-of-non-zero-cells" class="section level4" number="2.3.2.2">
+<h4><span class="header-section-number">2.3.2.2</span> Modify features
+of taxa by mean relative abundances or proportion of non-zero cells</h4>
 <p>If the mean relative abundances are modified, adjustments to the
 values of non-zero relative abundances may be necessary. Let <span class="math inline">\(\hat{p}_j\)</span> represent the mean relative
-abundances of taxa (mean.rel.abund), <span class="math inline">\(\hat{p}^1_j\)</span> denote the mean relative
+abundances of taxa (mean.rel.abund), <span class="math inline">\(\hat{p}^{(1)}_j\)</span> denote the mean relative
 abundances of taxa among non-zero samples (mean.rel.abund.1), and <span class="math inline">\(\hat{\delta}_j\)</span> represent the proportion
 of non-zero cells for taxa (taxa.1.prop).</p>
 <p>These three quantities are related by <span class="math display">\[\hat{p}_j =
-\hat{\delta}_j\hat{p}^1_j,\]</span></p>
+\hat{\delta}_j\hat{p}^{(1)}_j,\]</span></p>
 <p>For example, if <span class="math inline">\(\hat{p}_j\)</span> is
 altered while keeping <span class="math inline">\(\hat{\delta}j\)</span>
 constant, MIDASim calculates the mean relative abundance of non-zero
@@ -587,45 +579,46 @@ ensures that <span class="math inline">\({ \pi^\alpha{i,j} |
 (e.g. modify these taxa according to a compositional model). The
 following is the code for generating a set of target relative abundances
 as described,</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> <span class="fl">0.1</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>mean.rel.abund</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="ot">=</span> <span class="fu">exp</span>(beta) <span class="sc">*</span> new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> new.mean.rel.abund <span class="sc">/</span> <span class="fu">sum</span>(new.mean.rel.abund)</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> <span class="fl">0.1</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>mean.rel.abund</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="ot">=</span> <span class="fu">exp</span>(beta) <span class="sc">*</span> new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> new.mean.rel.abund <span class="sc">/</span> <span class="fu">sum</span>(new.mean.rel.abund)</span></code></pre></div>
 <p>then the target taxa relative abundances can be used in
 <em>MIDASim.modify()</em> as the following,</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup,</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">mean.rel.abund =</span> new.mean.rel.abund)</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">mean.rel.abund =</span> new.mean.rel.abund)</span></code></pre></div>
 <p>Users also have the option to modify the proportion of non-zero cells
-for all taxa. However, since this adjustment changes the total number of
-non-zero cells across the entire data table, users must provide the
-marginal proportion of non-zero cells for all samples.</p>
+for all taxa. However, because this modification affects the overall
+total count of non-zero cells throughout the entire dataset, users are
+required to specify the marginal proportions of non-zero cells for all
+samples.</p>
 <p>Suppose we wish to increase the proportion of non-zero cells for
 first 10 taxa by 0.05. We can achieve this by</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>new.taxa.<span class="fl">1.</span>prop <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>taxa.<span class="fl">1.</span>prop </span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>new.taxa.<span class="fl">1.</span>prop[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="ot">=</span> new.taxa.<span class="fl">1.</span>prop[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="sc">+</span> <span class="fl">0.05</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>new.taxa.<span class="fl">1.</span>prop <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>taxa.<span class="fl">1.</span>prop </span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>new.taxa.<span class="fl">1.</span>prop[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="ot">=</span> new.taxa.<span class="fl">1.</span>prop[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="sc">+</span> <span class="fl">0.05</span></span></code></pre></div>
 <p>Then to ensure that appropriate proportions of non-zero cells are
 provided for all samples, here we adjust them accordingly by</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>r <span class="ot">=</span> <span class="fu">sum</span>(new.taxa.<span class="fl">1.</span>prop) <span class="sc">/</span> <span class="fu">sum</span>(count.ibd.setup<span class="sc">$</span>taxa.<span class="fl">1.</span>prop)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>new.sample.<span class="fl">1.</span>prop <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>sample.<span class="fl">1.</span>prop <span class="sc">*</span> r</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>r <span class="ot">=</span> <span class="fu">sum</span>(new.taxa.<span class="fl">1.</span>prop) <span class="sc">/</span> <span class="fu">sum</span>(count.ibd.setup<span class="sc">$</span>taxa.<span class="fl">1.</span>prop)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>new.sample.<span class="fl">1.</span>prop <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>sample.<span class="fl">1.</span>prop <span class="sc">*</span> r</span></code></pre></div>
 <p>then the target proportion of non-zero cells for taxa can be used in
 <em>MIDASim.modify()</em> as the following,</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup,</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">taxa.1.prop =</span> new.taxa.<span class="fl">1.</span>prop,</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sample.1.prop =</span> new.sample.<span class="fl">1.</span>prop)</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup,</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">taxa.1.prop =</span> new.taxa.<span class="fl">1.</span>prop,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sample.1.prop =</span> new.sample.<span class="fl">1.</span>prop)</span></code></pre></div>
 <p>Users can also simultaneously adjust both the mean relative
 abundances and the proportion of non-zero cells for taxa using the
 following code by</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup,</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">mean.rel.abund =</span> new.mean.rel.abund,</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">taxa.1.prop =</span> new.taxa.<span class="fl">1.</span>prop,</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sample.1.prop =</span> new.sample.<span class="fl">1.</span>prop)</span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup,</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">mean.rel.abund =</span> new.mean.rel.abund,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">taxa.1.prop =</span> new.taxa.<span class="fl">1.</span>prop,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sample.1.prop =</span> new.sample.<span class="fl">1.</span>prop)</span></code></pre></div>
 </div>
 </div>
 <div id="parametric-mode" class="section level3" number="2.3.3">
 <h3><span class="header-section-number">2.3.3</span> parametric
 mode</h3>
 <p>If the parametric mode is chosen in <em>MIDASim.setup()</em>, then
-the user are able to modify the sample size, library sizes, taxon
+the user are able to modify the sample size, library sizes, taxa
 relative abundances, the location parameters in the generalized gamma
 distribution.</p>
 <p>Changes in the parameters of the parametric model (including library
@@ -651,9 +644,9 @@ explicitly.</p>
 <p>For example, to generate data having library sizes that are uniformly
 distributed between 1,000 and 10,000 while changing the number of
 samples to 700, we execute the code</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>new.lib.size <span class="ot">=</span> <span class="fu">sample</span>(<span class="dv">1000</span><span class="sc">:</span><span class="dv">10000</span>, <span class="at">size=</span><span class="dv">700</span>, <span class="at">replace=</span>T)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">lib.size =</span> new.lib.size)</span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>new.lib.size <span class="ot">=</span> <span class="fu">sample</span>(<span class="dv">1000</span><span class="sc">:</span><span class="dv">10000</span>, <span class="at">size=</span><span class="dv">700</span>, <span class="at">replace=</span>T)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">lib.size =</span> new.lib.size)</span></code></pre></div>
 </div>
 </div>
 <div id="modify-taxa-features-by-mean-relative-abundances-or-location-parameters" class="section level3" number="2.3.4">
@@ -674,20 +667,20 @@ non-zero cells.</p>
 (e.g. modify these taxa according to a compositional model). The
 following is the code for generating a set of target relative abundances
 as described,</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> <span class="fl">0.1</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>mean.rel.abund</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="ot">=</span> <span class="fu">exp</span>(beta) <span class="sc">*</span> new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> new.mean.rel.abund <span class="sc">/</span> <span class="fu">sum</span>(new.mean.rel.abund)</span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> <span class="fl">0.1</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> count.ibd.setup<span class="sc">$</span>mean.rel.abund</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>] <span class="ot">=</span> <span class="fu">exp</span>(beta) <span class="sc">*</span> new.mean.rel.abund[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>new.mean.rel.abund <span class="ot">=</span> new.mean.rel.abund <span class="sc">/</span> <span class="fu">sum</span>(new.mean.rel.abund)</span></code></pre></div>
 <p>then the target taxa relative abundances can be used in
 <em>MIDASim.modify()</em> as the following,</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">mean.rel.abund =</span> new.mean.rel.abund)</span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">mean.rel.abund =</span> new.mean.rel.abund)</span></code></pre></div>
 <p>Alternatively, the users can also directly change the location
 parameters <span class="math inline">\(\mu_j\)</span> by</p>
 <p><span class="math display">\[\mu_j \rightarrow \mu_j + \beta
 \]</span></p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">gengamma.mu =</span> count.ibd.setup<span class="sc">$</span>mu.est <span class="sc">+</span> beta)</span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>count.ibd.modified <span class="ot">=</span> <span class="fu">MIDASim.modify</span>(count.ibd.setup, </span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">gengamma.mu =</span> count.ibd.setup<span class="sc">$</span>mu.est <span class="sc">+</span> beta)</span></code></pre></div>
 </div>
 </div>
 <div id="simulate-microbiome-data-with-the-fitted-midas-model" class="section level2" number="2.4">
@@ -698,8 +691,8 @@ data with the fitted MIDAS model</h2>
 comprised of the simulated 0/1 (presence-absence) data,
 <code>sim_rel</code>, the table of relative abundances, and
 <code>sim_count</code>, the table of count data.</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>simulated.data <span class="ot">=</span> <span class="fu">MIDASim</span>(count.ibd.modified)</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(simulated.data)</span></code></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>simulated.data <span class="ot">=</span> <span class="fu">MIDASim</span>(count.ibd.modified)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(simulated.data)</span></code></pre></div>
 </div>
 <div id="references" class="section level2" number="2.5">
 <h2><span class="header-section-number">2.5</span> References</h2>

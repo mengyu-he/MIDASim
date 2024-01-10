@@ -1,4 +1,5 @@
-
+#' @importFrom stats var pnorm optimize plnorm qlnorm qgamma runif pnorm uniroot
+#'
 # normalize subjects sum to 1
 normalize_rel = function(x) {
   x <- x/rowSums(x)
@@ -59,35 +60,35 @@ cal_tetra = function(x) {
 
 # equation solver for mu and eta
 
-solver_mu_sigma = function(mu0, eta0, Ztotal, sample.1.prop, taxa.1.prop,
-                           ids.left, n.sample, n.rm) {
+solver_theta_eta = function(theta0, eta0, Ztotal, sample.1.prop, taxa.1.prop,
+                            ids.left, n.sample, n.rm) {
   max.iter <- 100
-  s1 <- sum(sample.1.prop)
-  s2 <- sum(taxa.1.prop)
+  Zi <- Ztotal * sample.1.prop / sum(sample.1.prop)
+  Zj <- Ztotal * taxa.1.prop / sum(taxa.1.prop)
   for (k in 1:max.iter) {
-    mu <- mu0
+    theta <- theta0
     eta <- eta0
 
     eta0 <- NULL
     for (i in 1:n.sample) {
-      equa <- function(x) (sum(pnorm(mu - x))+n.rm)/Ztotal - sample.1.prop[i]/s1
+      equa <- function(x) (sum(pnorm(theta + x))+n.rm) - Zi[i]
       eta0[i] <- pracma::fzero(fun = equa , x = c(-1000, 1000), tol = 10^-10)$x
     }
 
-    mu0 <- NULL
+    theta0 <- NULL
     jj <- 1
     for (j in ids.left) {
-      equa <- function(x) sum(pnorm(x - eta0))/Ztotal - taxa.1.prop[j]/s2
-      mu0[jj] <- pracma::fzero(fun = equa , x = c(-1000, 1000), tol = 10^-10)$x
+      equa <- function(x) sum(pnorm(x + eta0)) - Zj[j]
+      theta0[jj] <- pracma::fzero(fun = equa , x = c(-1000, 1000), tol = 10^-10)$x
       jj <- jj + 1
     }
 
-    diff <- sum(c(abs(mu0-mu), abs(eta0-eta)))
+    diff <- sum(c(abs(theta0-theta), abs(eta0-eta)))
     if (diff < 10^-5 ){
       break
     }
   }
-  return(list(mu0 = mu0, eta0 = eta0))
+  return(list(theta0 = theta0, eta0 = eta0))
 }
 
 check_taxa = function(taxa.1.prop, n.sample, Ztotal) {
@@ -412,6 +413,7 @@ q.gen.gamma = function(u, params, p.gamma = p.gamma.nr ) {
   mu = params[[1]]             #params$mu
   sigma = params[[2]]          #params$sigma
   Q = params[[3]]              #params$Q
+  if (Q < 0) u = 1-u
   if (Q == 0) {
     t = qlnorm(u, meanlog = mu, sdlog = sigma)
     pi = 1 / t
@@ -428,6 +430,7 @@ q.gen.gamma = function(u, params, p.gamma = p.gamma.nr ) {
   return(res)
 }
 
+
 r.gen.gamma = function(n, params, p.gamma = p.gamma.nr, value = 'pi') {
   #   generates a random sample from the generalized gamma distribution.
   #   returns either the value of pi or the value of t.
@@ -438,7 +441,7 @@ r.gen.gamma = function(n, params, p.gamma = p.gamma.nr, value = 'pi') {
     r = q.gen.gamma(u = u, params = params, p.gamma = p.gamma )$t
   } else {
     print( 'value must be either pi or t' )
-    return
+    return()
   }
   return(r)
 }

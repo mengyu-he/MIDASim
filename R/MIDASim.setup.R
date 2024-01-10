@@ -28,9 +28,6 @@
 #' \item{mean.rel.abund}{Observed mean relative abundances of each taxon.}
 #' \item{rel.abund.1}{Observed non-zero relative abundances of each taxon.}
 #' \item{taxa.names}{Names of taxa in the template.}
-#' \item{mu.est}{Estimated location parameters for the parametric model.}
-#' \item{sigma.est}{Estimated scale parameters for the parametric model.}
-#' \item{Q.est}{Estimated scale parameters for the parametric model.}
 #'
 #' @author Mengyu He
 #'
@@ -45,6 +42,7 @@
 #' # use parametric model
 #' fitted = MIDASim.setup(otu.tab, mode = 'parametric')
 #'
+#' @importFrom stats cor
 #' @export
 MIDASim.setup = function(otu.tab,
                          n.break.ties = 100,
@@ -65,7 +63,7 @@ MIDASim.setup = function(otu.tab,
 
   stopifnot("Invalid value for 'mode'. Please choose either 'parametric' or 'nonparametric'." = (mode %in% c('parametric', 'nonparametric')))
 
-  mat01 <- ifelse(otu.tab > 0, 1, 0)
+  mat01 <- (otu.tab > 0) *1
   rel.tab <- normalize_rel(otu.tab)
   obs.lib.size <- rowSums(otu.tab)
   rel.abund.1 <- apply(rel.tab, 2, function(x) x[x > 0])
@@ -113,9 +111,10 @@ MIDASim.setup = function(otu.tab,
                                   mu.est = -fitted.ggamma$mu.est,    # mu is now (-mu)
                                   sigma.est = fitted.ggamma$sigma.est,
                                   Q.est = fitted.ggamma$Q.est
-                                  ) )
+    ) )
 
   } else {
+
 
     fitted <- append(fitted, list(mat01 = mat01,
                                   lib.size = obs.lib.size,

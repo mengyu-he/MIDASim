@@ -71,7 +71,7 @@ vignette("MIDASim_vignette", package = "MIDASim")
 
 # MIDASim: Microbiome Data Simulator
 
-There are three main functions in MIDASim package: *MIDASim.setup()*, *MIDASim.modify()*, *MIDASim*.
+There are three main functions in MIDASim package: *MIDASim.setup()*, *MIDASim.modify()*, *MIDASim()*.
 
 ## Template data description
 
@@ -98,17 +98,21 @@ Other datasets come with the package include a vaginal microbiome dataset from H
 
 ## Setup the MIDASim model
 
-The function *MIDASim.setup()* fits the underlying MIDASim model and extracts information from the template data and returns the estimated parameters for microbiome simulation. MIDASim offers two modeling options for relative abundances: nonparametric and parametric.
+The function *MIDASim.setup()* fits the underlying MIDASim model and extracts information from the template data and returns the estimated parameters for microbiome simulation. MIDASim offers two modeling options for relative abundances: nonparametric and parametric. Both approaches utilize a two-stage procedure in which the first stage models the presence-absence relationship between taxa and the second stage models the non-zero values in the microbiome community. These two approaches differ by the way how the second stage marginal distributions are modeled. The nonparametric approach generates data that resemble the template data better than the parametric approach. However, the parametric approach offers modifications of the template data in more controlled way.
 
 In nonparametric mode (the default), a rank based approach is used to obtain the relative abundances for taxa that are considered to be non-zero in the simulated data. 
 
 To fit MIDASim with nonparametric mode to the *count.ibd* data, use the following command:
 
 ```{r}
-count.ibd.setup = MIDASim.setup(otu.tab, mode = 'nonparametric')
+count.ibd.setup = MIDASim.setup(otu.tab, mode = 'nonparametric', n.break.ties = 10)
 ```
 
-In parametric mode, MIDASim fits the generalized gamma model, a three-parameter distribution in the location-scale family that was proposed for analyzing right-censored survival data to the relative abundance data of each taxon separately. Denote the simulated relative abundance for $i$-th subject and $j$-th taxon as \tilde{\pi}_{ij}. We define ``survival time'' 
+The argument `n.break.ties` specifies the number of replicates used to break ties when ranking relative abundances for each taxon, and the default is `n.break.ties = 100`. 
+
+In parametric mode, MIDASim fits the generalized gamma model, a three-parameter distribution in the location-scale family that was proposed for analyzing right-censored survival data to the relative abundance data of each taxon separately.
+
+Denote the simulated relative abundance for $i$-th subject and $j$-th taxon as $\tilde{\pi}_{ij}$. We define ``survival time'' 
 \begin{equation} \label{eq:survivalTime}
     \tilde{t}_{ij} =
     \begin{cases}
@@ -121,22 +125,9 @@ which corresponds to treating $\tilde{t}_{ij}$ as right-censored when $\pi_{ij}<
 \begin{equation}\label{eq:logLinear}
  \ln(\tilde{t}_{ij}) =- \mu_j + s_j\sigma_j \cdot \omega_{ij}~, 
 \end{equation}
-where $e^{\omega_{ij}}$ follows a gamma distribution with shape parameter $k_j = 1/|Q_j|$ and scale parameter 1 and where and $s_j=\text{sign}(Q_j)$}. The negative sign on $\mu_j$ in $\eqref{eq:logLinear}$ is chosen to ensure that the sign of \(\mu_j\) is positive in a log-linear model for \(\widetilde{\pi}_{ij}\). This log-linear model is derived by using Equation $\eqref{eq:survivalTime}$ in Equation $\eqref{eq:logLinear}$.
+where $e^{\omega_{ij}}$ follows a gamma distribution with shape parameter $k_j = 1/|Q_j|$ and scale parameter 1, and $s_j=\text{sign}(Q_j)$}. 
 
-The resulting cumulative distribution function of $\tilde{t}_{1j},\cdots, \tilde{t}_{nj}$ is
-\begin{equation}\label{eq:GGcdf}
- F_j(t; \mu_j, \sigma_j, Q_j) \begin{cases}
-\frac{I\left(k_j, e^{\omega_j(t)}\right)}{\Gamma(k_j)}, \quad & Q_j>0
-\\
-\Phi\left(\omega_j(t)\right),\quad & Q_j=0
-\\
-1-\frac{I\left(k_j, e^{\omega_j(t)}\right)}{\Gamma(k_j)}, \quad & Q_j<0
-\end{cases}
-\end{equation}
-
-where $\omega_j(t) = \frac{\ln (t) + \mu_j}{\sigma_j}$, $I(s, x)$ is the lower incomplete gamma function, $I(s, x) = \int_0^x u^{s-1}e^{-u}du$, and $\Gamma(\cdot)$ is the gamma function. Note that log-normal distribution is a special case of the generalized gamma distribution with the scale parameter $Q=0$. 
-
-The three parameters $\mu, \sigma, Q$ are estimated in *MIDASim.setup()*.
+We estimate the three parameters $\mu_j, \sigma_j, Q_j$ in *MIDASim.setup()* using the relative abundances $\pi_j$ in the template.
 
 To fit MIDASim in parametric mode to the count.ibd data, use the following command:
 
@@ -144,13 +135,11 @@ To fit MIDASim in parametric mode to the count.ibd data, use the following comma
 count.ibd.setup = MIDASim.setup(otu.tab, mode = 'parametric')
 ```
 
-The argument `n.break.ties` in *MIDASim.setup()* specifies he number of replicates used to break ties when ranking relative abundances for each taxon. 
-
 The returned values of *MIDASim.setup()* include the estimated tetrachoric correlation of observed presence-absence data (`tetra.corr`), the estimated Pearson correlation of observed relative abundances (`corr.rel.corrected`), the proportion of non-zero cells for each taxon (`taxa.1.prop`), the proportion of non-zero cells for each subject (`sample.1.prop`), the observed mean relative abundances of each taxon (`mean.rel.abund`), and the observed relative abundances among non-zero cells for each taxon (`rel.abund.1`). If mode = 'parametric', the function will also return the estimated parameters of the generalized gamma distribution (`mu.est`, `sigma.est`, and `Q.est`).
 
 ## Modify the fitted MIDASim model
 
-The function *MIDASim.modify()* sets up quantities required to simulate data using MIDAS.  This function also allows users to modify library sizes, taxon relative abundances, the location parameters in the parametric model, taxon proportion of non-zero cells, number of samples. Note that this is a **required** step even if no adjustment is made.
+The function *MIDASim.modify()* sets up quantities required to simulate data using MIDAS.  This function also allows users to modify library sizes, taxa relative abundances, the location parameters in the parametric model, taxa proportion of non-zero cells, number of samples. Note that this is a **required** step even if no adjustment is made.
 
 ### No modification at all
 
@@ -167,38 +156,43 @@ count.ibd.modified = MIDASim.modify(count.ibd.setup,
 
 Next, we will explain how to modify the data features to accommodate a wide range of simulation scenarios, separately for the nonparametric and parametric modes.
 
-### nonparametric mode
+### Model modification in nonparametric mode
 
-If the nonparametric mode is chosen in *MIDASim.setup()*, then the user are able to modify the sample size, library sizes, taxon relative abundances, taxon proportion of non-zero cells. 
+We provide options for modifying the model under the nonparametric mode. However, it's important to note that such modifications may not be as controlled as in parametric mode. For example, if we wish to change the library sizes of certain observations or the relative abundances of various taxa, it is not clear how the proportion of non-zero taxa should change in the nonparametric mode.
+
+In nonparametric mode, users are able to modify the sample size, library sizes, taxa relative abundances, taxa proportion of non-zero cells. 
 
 #### Modify the number of samples and their library sizes
 
-To change the library sizes, set the `lib.size` argument equal to a vector with the target library sizes. The length of this vector becomes the new number of samples.
+To change the library sizes, set the `lib.size` argument equal to a vector with the target library sizes. The number of samples can be modified implicitly by specifying library sizes with a vector length equal to the desired sample size.
 
-Please note that if you intend to modify the library sizes, determining how the proportion of non-zero taxa should change can be challenging in a nonparametric model. However, it is generally observed that larger library sizes are associated with fewer zero cells.
-
-Note that, if we wish to change the library sizes, it is not clear how the proportion of non-zero taxa should change because of the model is nonparametric. However, larger library sizes are typically accompanied by fewer zero cells. Therefore, *MIDASim.modify()* requires the user to specify the marginal totals of non-zeros together when a change in `lib.size` is made. The quantities should be transformed to marginal proportions and given by the arguments `sample.1.prop` and `taxa.1.prop`. 
+Note that, if we wish to change the library sizes, the proportion of non-zero taxa would also change. Typically, larger library sizes are accompanied by fewer zero cells. However, since the model is nonparametric, there is no simple parametric relationship between the changes in zero cells and relative abundances. *MIDASim.modify()* requires the user to specify the marginal totals of non-zeros together when a change in `lib.size` is made. This can be achieved by providing the marginal proportions using the `sample.1.prop` and `taxa.1.prop` arguments within the function."
 
 An example way determine the appropriate number of non-zero cells for the new library size is to fit a Shape Constrained Additive model (SCAM) model 
 $$ log10(Z_{i.}) = f\left(log_{10}(N_{i})\right)+\epsilon_i$$
-where $f$ is a monotone smoothing spline, $Z_{i\cdot}$ is the number of non-zero cells in each sample. Then adjust the number of non-zero cells for each taxon accordingly to satisfy the constraint that product of 'sample.1.prop' and number of taxa should equal the product of 'taxa.1.prop' and number of samples,
+where $f$ is a monotone smoothing spline, $Z_{i\cdot}$ is the number of non-zero cells in each sample, $\epsilon_i$ is the error term. We could adjust the number of non-zero cells for each taxon in a way that satisfies the constraint that the product of `sample.1.prop` and the number of taxa should be equal to the product of `taxa.1.prop` and the number of samples,
 
 $$Z_{i.}\times J = Z_{.j}\times n$$
 
-For example, to generate data having library sizes that are uniformly distributed between 1,000 and 10,000 while changing the number of samples to 700 and allowing the proportion of non-zero cells to adjust according the the SCAM model, we first generate the marginal totals of non-zero cells by
+For example, if we want to generate data with library sizes uniformly distributed between 1,000 and 10,000 while changing the number of samples to 700 and allowing the proportion of non-zero cells to adjust according to the SCAM model, we can start by generating the marginal totals of non-zero cells and transforming the totals to proportions using the following:
 
 ```{r}
-new.lib.size = sample(1000:10000, size=700, replace=T)
+new.lib.size = sample(1000:10000, size=700, replace=TRUE)
 
 obs.sample.1.ct = rowSums(count.ibd > 0)
 xvar = log10(rowSums(count.ibd))
 scamfit.non0 = scam::scam( log10(obs.sample.1.ct) ~  s( xvar, bs = "mpi" ))
 sample.1.ct = 10^(predict(scamfit.non0,
-                           newdata = data.frame(xvar = log10(lib.size) )) )
-n.taxa = ncol(count.ibd)
-new.sample.1.prop = pmin(sample.1.ct, n.taxa)/n.taxa
-new.taxa.1.prop = fitted$taxa.1.prop * (sum(new.sample.1.prop) * n.taxa / 700) / sum(fitted$taxa.1.prop)
+                           newdata = data.frame(xvar = log10(new.lib.size) )) )
 
+n.taxa = ncol(count.ibd)
+new.sample.1.prop = sample.1.ct/n.taxa
+new.taxa.1.prop = fitted$taxa.1.prop * (sum(new.sample.1.prop) * n.taxa / 700) / sum(fitted$taxa.1.prop)
+```
+
+Then we can use *MIDASim.modify()* by
+
+```{r}
 count.ibd.modified = MIDASim.modify(count.ibd.setup, 
                                     lib.size = new.lib.size,
                                     sample.1.prop = new.sample.1.prop,
@@ -206,12 +200,12 @@ count.ibd.modified = MIDASim.modify(count.ibd.setup,
 ```
 
 
-#### Modify taxa features by mean relative abundances or proportion of non-zero cells
+#### Modify features of taxa by mean relative abundances or proportion of non-zero cells
 
-If the mean relative abundances are modified, adjustments to the values of non-zero relative abundances may be necessary. Let $\hat{p}_j$ represent the mean relative abundances of taxa (mean.rel.abund), $\hat{p}^1_j$ denote the mean relative abundances of taxa among non-zero samples (mean.rel.abund.1), and $\hat{\delta}_j$ represent the proportion of non-zero cells for taxa (taxa.1.prop).
+If the mean relative abundances are modified, adjustments to the values of non-zero relative abundances may be necessary. Let $\hat{p}_j$ represent the mean relative abundances of taxa (mean.rel.abund), $\hat{p}^{(1)}_j$ denote the mean relative abundances of taxa among non-zero samples (mean.rel.abund.1), and $\hat{\delta}_j$ represent the proportion of non-zero cells for taxa (taxa.1.prop).
 
 These three quantities are related by
-$$\hat{p}_j = \hat{\delta}_j\hat{p}^1_j,$$
+$$\hat{p}_j = \hat{\delta}_j\hat{p}^{(1)}_j,$$
 
 For example, if $\hat{p}_j$ is altered while keeping $\hat{\delta}j$ constant, MIDASim calculates the mean relative abundance of non-zero cells as $p^{(1)}_j=p_j/\delta_j$. Subsequently, it determines the value $\alpha_j$ for each taxon in a way that ensures that ${ \pi^\alpha{i,j} | \pi{ij}>0 }$ has a mean equal to $p^{(1)}_j$ for each taxon.
 
@@ -232,7 +226,7 @@ count.ibd.modified = MIDASim.modify(count.ibd.setup,
 ```
 
 
-Users also have the option to modify the proportion of non-zero cells for all taxa. However, since this adjustment changes the total number of non-zero cells across the entire data table, users must provide the marginal proportion of non-zero cells for all samples.
+Users also have the option to modify the proportion of non-zero cells for all taxa. However, because this modification affects the overall total count of non-zero cells throughout the entire dataset, users are required to specify the marginal proportions of non-zero cells for all samples. 
 
 Suppose we wish to increase the proportion of non-zero cells for first 10 taxa by 0.05. We can achieve this by 
 
@@ -267,7 +261,7 @@ count.ibd.modified = MIDASim.modify(count.ibd.setup,
 
 ### parametric mode
 
-If the parametric mode is chosen in *MIDASim.setup()*, then the user are able to modify the sample size, library sizes, taxon relative abundances, the location parameters in the generalized gamma distribution. 
+If the parametric mode is chosen in *MIDASim.setup()*, then the user are able to modify the sample size, library sizes, taxa relative abundances, the location parameters in the generalized gamma distribution. 
 
 Changes in the parameters of the parametric model (including library sizes) imply coordinated changes in all other quantities. After either modification of the parameters, we predict the probability of being non-zero of $i$-th subject and $j$-th taxon by 
 
@@ -283,7 +277,7 @@ To change the library sizes, set the `lib.size` argument equal to a vector with 
 For example, to generate data having library sizes that are uniformly distributed between 1,000 and 10,000 while changing the number of samples to 700, we execute the code
 
 ```{r}
-new.lib.size = sample(1000:10000, size=700, replace=T)
+new.lib.size = sample(1000:10000, size=700, replace=TRUE)
 count.ibd.modified = MIDASim.modify(count.ibd.setup, 
                                     lib.size = new.lib.size)
 ```

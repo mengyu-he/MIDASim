@@ -30,7 +30,6 @@ otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 fitted = MIDASim.setup(otu.tab)
 fitted.modified = MIDASim.modify(fitted)
 sim = MIDASim(fitted.modified, only.rel = FALSE)
-View(sim[["sim_rel"]])
 
 }
 \author{
