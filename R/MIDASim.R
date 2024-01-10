@@ -36,7 +36,7 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
                          Sigma = suppressWarnings(psych::cor.smooth(fitted.modified$tetra.corr)),
                          tol = 10^-8 )
     if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
-    sim_01 <- ifelse( mvn >= fitted.modified$eta, 1, 0)
+    sim_01 <- ifelse( mvn >= -fitted.modified$eta, 1, 0)
   } else {
     tetra.corr <- fitted.modified$tetra.corr[-ids, -ids]
     mvn <- MASS::mvrnorm(n = n.sample , theta,
@@ -44,7 +44,7 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
                          tol = 10^-8 )
     if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
     sim_01 <- matrix(1, nrow = n.sample, ncol = n.taxa)
-    sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= fitted.modified$eta, 1, 0)
+    sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= -fitted.modified$eta, 1, 0)
     sim_01[ ,fitted.modified$zero.id ] <- 0
   }
 

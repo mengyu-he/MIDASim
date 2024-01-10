@@ -12,7 +12,6 @@ Suggests:
   rmarkdown, 
   knitr, 
   HMP2Data, 
-  devtools,
   roxygen2,
   testthat
 Author: Mengyu He
