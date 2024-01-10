@@ -2,3 +2,4 @@
 ^Meta$
 ^\.travis\.yml$
 ^\.github$
+^appveyor\.yml$
