@@ -1,3 +1,7 @@
+<!-- badges: start -->
+  [![R-CMD-check](https://github.com/mengyu-he/MIDASim/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/mengyu-he/MIDASim/actions/workflows/R-CMD-check.yaml)
+  <!-- badges: end -->
+
 # MIDASim: a fast and simple simulator for realistic microbiome data
 
 
