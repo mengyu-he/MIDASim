@@ -1,4 +1,4 @@
-# MIDAS: a fast and simple simulator for realistic microbiome data
+# MIDASim: a fast and simple simulator for realistic microbiome data
 
 
 # Overview
@@ -11,16 +11,16 @@ Required packages for functions in MIDAS include: psych, MASS, vegan, pracma, sc
 
 ## Installation
 
-Install from the local file (the .tar.gz file), which you can download from https://github.com/mengyu-he/MIDAS.
+Install from the local file (the .tar.gz file), which you can download from https://github.com/mengyu-he/MIDASim.
 
 ```{r}
-devtools::install_local("MIDAS_0.1.0.tar.gz", dependencies = TRUE)
+devtools::install_local("MIDASim_0.1.0.tar.gz", dependencies = TRUE)
 ```
 
 A github installation is also available via
 
 ```{r}
-devtools::install_github("mengyu-he/MIDAS")
+install_github("mengyu-he/MIDASim")
 ```
 
 
