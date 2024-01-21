@@ -29,6 +29,7 @@ jobs:
       - run:
           name: Install dependencies and check package
           command: |
+            R -e 'install.packages("devtools")'
             R -e 'devtools::install_deps(dep = TRUE)'
             R CMD build .
             R CMD check *tar.gz
