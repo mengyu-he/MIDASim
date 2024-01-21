@@ -12,7 +12,7 @@ jobs:
 
   build-osx:
     macos:
-      xcode: "12.0.0"  # Specify an Xcode version which comes with the needed macOS and compilers
+      xcode: 14.2.0
     steps:
       - checkout
       - run:
