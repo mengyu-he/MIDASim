@@ -6,7 +6,7 @@ jobs:
       - image: rocker/r-ver:latest
     steps:
       - checkout
-      - run: conda install -c r r-devtools
+      - run: sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev
       - run: R -e 'install.packages("devtools", repos = "http://cran.us.r-project.org")'
       - run:
           name: Install package dependencies
