@@ -37,13 +37,10 @@ jobs:
           command: |
             R -e 'install.packages("devtools", repos = "http://cran.us.r-project.org")'
             R -e 'devtools::install_deps(dep = TRUE, repos = "http://cran.us.r-project.org")'
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y pandoc libxt6
       - run:
-          name: Update system and install dependencies
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y pandoc libxt6
-        -run:
-          name: build package
+          name: build package in osx
           command: |
             R CMD build .
             R CMD check *tar.gz
