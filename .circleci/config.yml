@@ -3,17 +3,12 @@ version: 2.1
 jobs:
   build-linux:
     docker:
-      - image: rocker/verse:4.0
+      - image: rocker/tidyverse:4.0
     steps:
       - checkout
       - run:
           name: Install package dependencies
           command: R -e "devtools::install_deps(dep = TRUE, repos = 'http://cran.us.r-project.org')"
-      - run:
-          name: Update system and install dependencies
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y pandoc libxt6
       - run:
           name: Build package
           command: R CMD build .
@@ -35,8 +30,7 @@ jobs:
           command: |
             R -e 'install.packages("devtools", repos = "http://cran.us.r-project.org")'
             R -e 'devtools::install_deps(dep = TRUE, repos = "http://cran.us.r-project.org")'
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y pandoc libxt6
+      - run: brew install pandoc
       - run:
           name: build package in osx
           command: |
