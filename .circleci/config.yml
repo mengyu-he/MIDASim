@@ -14,7 +14,7 @@ jobs:
           command: R CMD build .
       - run:
           name: Check package
-          command: R CMD check *tar.gz
+          command: R CMD check *tar.gz --no-manual
 
   build-osx:
     macos:
@@ -35,7 +35,7 @@ jobs:
           name: build package in osx
           command: |
             R CMD build .
-            R CMD check *tar.gz
+            R CMD check *tar.gz --no-manual
 
 workflows:
   build:
