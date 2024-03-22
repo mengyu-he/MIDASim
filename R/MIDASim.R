@@ -31,21 +31,42 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
   theta <- fitted.modified$theta
 
   ids <- union(fitted.modified$zero.id, fitted.modified$one.id)
-  if (length(ids) == 0) {
-    mvn <- MASS::mvrnorm(n = n.sample , theta,
-                         Sigma = suppressWarnings(psych::cor.smooth(fitted.modified$tetra.corr)),
-                         tol = 10^-8 )
-    if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
-    sim_01 <- ifelse( mvn >= -fitted.modified$eta, 1, 0)
+  if (fitted.modified$mode == 'nonparametric') {
+    if (length(ids) == 0) {
+      mvn <- MASS::mvrnorm(n = n.sample , theta,
+                           Sigma = suppressWarnings(psych::cor.smooth(fitted.modified$tetra.corr)),
+                           tol = 10^-8 )
+      if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
+      sim_01 <- ifelse( mvn >= -fitted.modified$eta, 1, 0)
+    } else {
+      tetra.corr <- fitted.modified$tetra.corr[-ids, -ids]
+      mvn <- MASS::mvrnorm(n = n.sample , theta,
+                           Sigma = suppressWarnings(psych::cor.smooth(tetra.corr)),
+                           tol = 10^-8 )
+      if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
+      sim_01 <- matrix(1, nrow = n.sample, ncol = n.taxa)
+      sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= -fitted.modified$eta, 1, 0)
+      sim_01[ ,fitted.modified$zero.id ] <- 0
+    }
   } else {
-    tetra.corr <- fitted.modified$tetra.corr[-ids, -ids]
-    mvn <- MASS::mvrnorm(n = n.sample , theta,
-                         Sigma = suppressWarnings(psych::cor.smooth(tetra.corr)),
-                         tol = 10^-8 )
-    if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
-    sim_01 <- matrix(1, nrow = n.sample, ncol = n.taxa)
-    sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= -fitted.modified$eta, 1, 0)
-    sim_01[ ,fitted.modified$zero.id ] <- 0
+    if (length(ids) == 0) {
+      mvn <- MASS::mvrnorm(n = n.sample , rep(0, n.taxa),
+                           Sigma = suppressWarnings(psych::cor.smooth(fitted.modified$tetra.corr)),
+                           tol = 10^-8 )
+      if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
+      mvn <- mvn - qnorm( 1 - fitted.modified$prob01.mat )
+      sim_01 <- ifelse( mvn >= 0, 1, 0)
+    } else {
+      tetra.corr <- fitted.modified$tetra.corr[-ids, -ids]
+      mvn <- MASS::mvrnorm(n = n.sample , rep(0, n.taxa),
+                           Sigma = suppressWarnings(psych::cor.smooth(tetra.corr)),
+                           tol = 10^-8 )
+      if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
+      sim_01 <- matrix(1, nrow = n.sample, ncol = n.taxa)
+      mvn <- mvn - qnorm( 1 - fitted.modified$prob01.mat )
+      sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= 0, 1, 0)
+      sim_01[ ,fitted.modified$zero.id ] <- 0
+    }
   }
 
   mvn <- MASS::mvrnorm(n = n.sample, mu = rep(0, n.taxa),

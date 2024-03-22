@@ -174,14 +174,14 @@ sigma.of.k = function(K, cv.sq) {
   if (K > 0) {
     upper = K / 2 - 1 / (2 * gamma(K / 2) * (10 * cv.sq + 2))
     res = suppressWarnings(uniroot(f = sigma.eqn, interval=c(0, upper),
-                                   K = K, cv.sq = cv.sq))
+                                   K = K, cv.sq = cv.sq, tol = 10^-12))
     sigma = res$root
   }
   else if (K<0) {
 
     res = suppressWarnings(uniroot(f = sigma.eqn, interval = c(0, 2 * abs(K)),
                                    extendInt='upX',
-                                   K = K, cv.sq = cv.sq))
+                                   K = K, cv.sq = cv.sq, tol = 10^-12))
     sigma = res$root
   }
   return(sigma)
