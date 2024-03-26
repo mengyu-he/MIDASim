@@ -36,6 +36,9 @@ argument is only applicable in nonparametric mode.}
 \item{taxa.1.prop}{Numeric vector of specified proportion of non-zeros for
 taxa (the length should be equal to \code{n.taxa} in \code{fitted}). This argument
 is only applicable in nonparametric mode.}
+
+\item{...}{Additional arguments. If SCAM model is chosen for parameter changes
+under the non-parametric mode, specify \code{SCAM = T}.}
 }
 \value{
 Returns an updated list with different elements depending on the value

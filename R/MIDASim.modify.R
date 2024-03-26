@@ -22,6 +22,8 @@
 #' @param sample.1.prop Numeric vector of specified proportion of non-zeros for
 #' subjects (the length should be equal to \code{n.sample} in \code{fitted}). This
 #' argument is only applicable in nonparametric mode.
+#' @param ... Additional arguments. If SCAM model is chosen for parameter changes
+#' under the non-parametric mode, specify \code{SCAM = T}.
 #'
 #' @details The parametric model in MIDASim is a location-scale model, specifically, a
 #' generalized gamma model for relative abundances \eqn{\pi} of a taxon. Denote \eqn{t = 1/\pi}.
