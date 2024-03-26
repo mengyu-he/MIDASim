@@ -10,7 +10,8 @@ MIDASim.modify(
   mean.rel.abund = NULL,
   gengamma.mu = NULL,
   sample.1.prop = NULL,
-  taxa.1.prop = NULL
+  taxa.1.prop = NULL,
+  ...
 )
 }
 \arguments{
