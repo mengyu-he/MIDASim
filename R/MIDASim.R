@@ -58,12 +58,12 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
       sim_01 <- ifelse( mvn >= 0, 1, 0)
     } else {
       tetra.corr <- fitted.modified$tetra.corr[-ids, -ids]
-      mvn <- MASS::mvrnorm(n = n.sample , rep(0, n.taxa),
+      mvn <- MASS::mvrnorm(n = n.sample , rep(0, nrow(tetra.corr)),
                            Sigma = suppressWarnings(psych::cor.smooth(tetra.corr)),
                            tol = 10^-8 )
       if (n.sample == 1) mvn = matrix(mvn, nrow = 1)
       sim_01 <- matrix(1, nrow = n.sample, ncol = n.taxa)
-      mvn <- mvn - qnorm( 1 - fitted.modified$prob01.mat )
+      mvn <- mvn - qnorm( 1 - fitted.modified$prob01.mat[,-ids] )
       sim_01[ ,fitted.modified$ids.left ] <- ifelse( mvn >= 0, 1, 0)
       sim_01[ ,fitted.modified$zero.id ] <- 0
     }
