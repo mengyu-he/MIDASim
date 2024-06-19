@@ -50,7 +50,7 @@ cal_tetra = function(x) {
   pplus1 <- (f11 + f21)/f
   pmin <- ifelse(p1plus < pplus1, p1plus, pplus1)
   c <- (1 - abs(p1plus - pplus1)/5 - (0.5-pmin)^2 )/2
-  rho <- cos(pi/(1+omega^c))
+  rho <- cos(base::pi/(1+omega^c))
 
   tetra.corr <- matrix(rho, nrow = ncol(x), ncol = ncol(x))
   diag(tetra.corr) <- 1
@@ -110,7 +110,7 @@ check_taxa = function(taxa.1.prop, n.sample, Ztotal) {
 
 }
 
-fit_ggamma = function(cv.sq, mean.rel.abund, lib.size, mat01) {
+fit_ggamma = function(cv.sq, mean.rel.abund, lib.size, mat01, m3) {
 
   n.taxa = length(mean.rel.abund)
 
@@ -118,13 +118,26 @@ fit_ggamma = function(cv.sq, mean.rel.abund, lib.size, mat01) {
   for (j in 1:n.taxa) {
 
     delta = (mat01[,j] > 0)
-    res = suppressWarnings(optimize(f = binary.log.like,
-                                    interval = c(-150,150),
-                                    maximum = TRUE,
-                                    m1 = mean.rel.abund[j],
-                                    cv.sq = cv.sq[j],
-                                    lib.size = lib.size,
-                                    delta = delta))
+
+    if (is.na(m3[j])) {
+      res = suppressWarnings(optimize(f = binary.log.like,
+                                      interval = c(-150,150),
+                                      maximum = TRUE,
+                                      m1 = mean.rel.abund[j],
+                                      cv.sq = cv.sq[j],
+                                      lib.size = lib.size,
+                                      delta = delta))
+    } else {
+      res = suppressWarnings(optimize(f = obj.m3,
+                                      interval = c(-150,150),
+                                      maximum = TRUE,
+                                      m1 = mean.rel.abund[j],
+                                      cv.sq = cv.sq[j],
+                                      m3 = m3[j],
+                                      lib.size = lib.size,
+                                      delta = delta))
+    }
+
     Q.est[j] = res$maximum
     params = mu.sigma.of.Q( Q.est[j], mean.rel.abund[j], cv.sq[j] )
     mu.est[j] = params$mu
@@ -167,6 +180,7 @@ binary.log.like = function(Q, m1, cv.sq, lib.size, delta, eps = 10^-3,
   return(log.like)
 }
 
+#' @noRd
 sigma.of.k = function(K, cv.sq) {
   #
   #   calculates sigma given a value of K (WARNING - K, not Q)
@@ -187,6 +201,7 @@ sigma.of.k = function(K, cv.sq) {
   return(sigma)
 }
 
+#' @noRd
 sigma.eqn = function(x, K, cv.sq) {
   log.ratio = gammln(abs(K) - sign(K) * 2 * x) + gammln(abs(K)) - 2 * gammln(abs(K) - sign(K) * x)
   value = exp(log.ratio) - 1 - cv.sq
@@ -389,15 +404,14 @@ gammln = function(x) {
 
 p.gen.gamma = function(t, params, p.gamma = p.gamma.nr,
                        lower.tail = TRUE, log.p = FALSE) {
-  #   calculates the CDF of the generalized gamma in terms of input pi in [0,1].
-  #   WARNING - work-around needed if pi=0 and pi=1 are desired...
+  #   calculates the CDF of the generalized gamma in terms of input t.
   mu = params[[1]]             #params$mu
   sigma = params[[2]]          #params$sigma
   Q = params[[3]]              #params$Q
   if (Q != 0) {
     K = 1 / abs(Q)
     z = sign(Q) * (log(t) - mu) / sigma
-    lower.tail = (Q > 0) * lower.tail
+    lower.tail = identical(Q > 0, lower.tail)
     cdf = rep(0,length(pi))
     cdf = p.gamma(z = z, x = exp(z), a = K, log.p = log.p, lower.tail = lower.tail)
   } else {
@@ -456,3 +470,29 @@ est.mu = function(mu, sigma, Q) {
   return(est)
 }
 
+obj.m3 = function(Q, m1, cv.sq, m3, lib.size, delta, eps = 10^-3,
+                  p.gamma = p.gamma.nr) {
+
+  if (abs(Q) > eps) {
+
+    K = 1 / Q
+    sigma = sigma.of.k(K, cv.sq)      # match CV2
+    mu = gammln(abs(K) - sign(K) * sigma) - gammln(abs(K)) - log(m1)     # match mean
+
+    if (abs(K) - 3 * sign(K) * sigma > 0){
+      log.m3 = gammln(abs(K) - 3 * sign(K) * sigma) - gammln(abs(K)) - mu * 3
+      # non central moment
+      f = - (m3 - exp(log.m3) )^2
+    } else {
+      f = -Inf
+    }
+
+  } else {
+    sigma.sq = log(1 + cv.sq)
+    mu = 0.5 * sigma.sq - log(m1)
+    z = (log(lib.size) - mu) / sqrt(sigma.sq)
+
+    f = - (m3 - exp(- 3 * mu + 9 * sigma.sq / 2))^2
+  }
+  return(f)
+}

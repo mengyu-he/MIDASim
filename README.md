@@ -24,7 +24,7 @@ devtools::install_local("MIDASim_0.1.0.tar.gz", dependencies = TRUE)
 A github installation is also available via
 
 ```{r}
-install_github("mengyu-he/MIDASim")
+devtools::install_github("mengyu-he/MIDASim")
 ```
 
 

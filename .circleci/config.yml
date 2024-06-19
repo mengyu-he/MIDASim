@@ -4,6 +4,8 @@ jobs:
   build-linux:
     docker:
       - image: rocker/tidyverse:4.0
+    environment:
+      _R_CHECK_FORCE_SUGGESTS_: false
     steps:
       - checkout
       - run:
@@ -19,6 +21,8 @@ jobs:
   build-osx:
     macos:
       xcode: 14.2.0
+    environment:
+      _R_CHECK_FORCE_SUGGESTS_: false
     steps:
       - checkout
       - run:

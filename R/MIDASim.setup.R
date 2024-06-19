@@ -91,9 +91,10 @@ MIDASim.setup = function(otu.tab,
 
   if (mode == 'parametric') {
 
-    cv.sq = n.sample / (n.sample - 1) * (colMeans(rel.tab^2) - mean.rel.abund^2) / mean.rel.abund^2  # coefficient of variation^2
-    fitted.ggamma = fit_ggamma(cv.sq, mean.rel.abund,
-                               obs.lib.size, mat01)
+    cv.sq <- n.sample / (n.sample - 1) * (colMeans(rel.tab^2) - mean.rel.abund^2) / mean.rel.abund^2  # coefficient of variation^2
+    m3 <- rep(NA, n.taxa)
+    m3[taxa.1.prop == 1] <- as.vector(apply(rel.tab[, taxa.1.prop == 1, drop=FALSE], 2, function(x) mean(x^3)))
+    fitted.ggamma <- fit_ggamma(cv.sq, mean.rel.abund, obs.lib.size, mat01, m3)
 
     fitted <- append(fitted, list(mat01 = mat01,
                                   lib.size = obs.lib.size,
