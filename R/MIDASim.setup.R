@@ -116,7 +116,6 @@ MIDASim.setup = function(otu.tab,
 
   } else {
 
-
     fitted <- append(fitted, list(mat01 = mat01,
                                   lib.size = obs.lib.size,
                                   n.taxa = n.taxa,

@@ -119,29 +119,36 @@ fit_ggamma = function(cv.sq, mean.rel.abund, lib.size, mat01, m3) {
 
     delta = (mat01[,j] > 0)
 
-    if (is.na(m3[j])) {
-      res = suppressWarnings(optimize(f = binary.log.like,
-                                      interval = c(-150,150),
-                                      maximum = TRUE,
-                                      m1 = mean.rel.abund[j],
-                                      cv.sq = cv.sq[j],
-                                      lib.size = lib.size,
-                                      delta = delta))
+    if (sum(delta) > 0) {
+
+      if (is.na(m3[j])) {
+        res = suppressWarnings(optimize(f = binary.log.like,
+                                        interval = c(-150,150),
+                                        maximum = TRUE,
+                                        m1 = mean.rel.abund[j],
+                                        cv.sq = cv.sq[j],
+                                        lib.size = lib.size,
+                                        delta = delta))
+      } else {
+        res = suppressWarnings(optimize(f = obj.m3,
+                                        interval = c(-150,150),
+                                        maximum = TRUE,
+                                        m1 = mean.rel.abund[j],
+                                        cv.sq = cv.sq[j],
+                                        m3 = m3[j],
+                                        lib.size = lib.size,
+                                        delta = delta))
+      }
+
+      Q.est[j] = res$maximum
+      params = mu.sigma.of.Q( Q.est[j], mean.rel.abund[j], cv.sq[j] )
+      mu.est[j] = params$mu
+      sigma.est[j] = params$sigma
+
     } else {
-      res = suppressWarnings(optimize(f = obj.m3,
-                                      interval = c(-150,150),
-                                      maximum = TRUE,
-                                      m1 = mean.rel.abund[j],
-                                      cv.sq = cv.sq[j],
-                                      m3 = m3[j],
-                                      lib.size = lib.size,
-                                      delta = delta))
+      Q.est[j] = mu.est[j] = sigma.est[j] = NA
     }
 
-    Q.est[j] = res$maximum
-    params = mu.sigma.of.Q( Q.est[j], mean.rel.abund[j], cv.sq[j] )
-    mu.est[j] = params$mu
-    sigma.est[j] = params$sigma
   }
 
   return(list(Q.est = Q.est, mu.est = mu.est, sigma.est = sigma.est))
@@ -257,8 +264,12 @@ get.prob01.mat = function(mu.est, sigma.est, Q.est, lib.size, p.gamma = p.gamma.
   prob01.mat = matrix(nrow = length(lib.size), ncol = n.taxa)
   for (j in 1:n.taxa) {
 
-    params = list(mu.est[j], sigma.est[j], Q.est[j])
-    prob01.mat[, j] = 1 - pr.zero(params, lib.size, p.gamma = p.gamma.nr)
+    if (is.na(mu.est[j])) {
+      prob01.mat[, j] = 0 # in the original data, the taxon does not exist in any sample
+    } else {
+      params = list(mu.est[j], sigma.est[j], Q.est[j])
+      prob01.mat[, j] = 1 - pr.zero(params, lib.size, p.gamma = p.gamma.nr)
+    }
 
   }
   return(prob01.mat)
@@ -462,8 +473,7 @@ r.gen.gamma = function(n, params, p.gamma = p.gamma.nr, value = 'pi') {
 
 est.mu = function(mu, sigma, Q) {
   s = sign(Q)
-  k = rep(0,length(Q))
-  k[ Q!=0 ] = 1/abs( Q[Q!=0] )
+  k = ifelse(Q != 0, 1/abs(Q), 0)
 
   est = ifelse(Q == 0, exp( -mu + 0.5 * sigma^2 ),
                exp( -mu + gammln(k - s*sigma) - gammln(k) ) )

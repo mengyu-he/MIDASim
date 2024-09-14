@@ -98,7 +98,7 @@ MIDASim.modify = function(fitted,
       # gengamma.mu specified
       gengamma.mu = -gengamma.mu
       est = est.mu(gengamma.mu, fitted$sigma.est, fitted$Q.est)
-      fitted$mu.est = gengamma.mu + log( sum(est) )
+      fitted$mu.est = gengamma.mu + log( sum(est, na.rm = T) )
     }
 
     if (arg[1] == 1) {

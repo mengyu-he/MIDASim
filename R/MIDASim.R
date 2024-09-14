@@ -110,19 +110,25 @@ MIDASim = function(fitted.modified, only.rel = FALSE) {
     fitted.modified$mu.est = -fitted.modified$mu.est     # mu is now (-mu)
     rel.sim = matrix(0, nrow = n.sample, ncol = n.taxa)
     for (j in 1:n.taxa) {
-      params <- list(fitted.modified$mu.est[j],
-                     fitted.modified$sigma.est[j],
-                     fitted.modified$Q.est[j])
-      p_left <- 0
-      ind <- which(sim_01[,j] == 1)
-      p_right <- p.gen.gamma(fitted.modified$lib.size[ind],
-                             params = params)
 
-      n1 <- sum(sim_01[, j])
-      u <- runif(n1, p_left, p_right)
+      if (j %in% fitted.modified$zero.id) {
+        rel.sim[, j] = 0
+      } else {
+        params <- list(fitted.modified$mu.est[j],
+                       fitted.modified$sigma.est[j],
+                       fitted.modified$Q.est[j])
+        p_left <- 0
+        ind <- which(sim_01[,j] == 1)
+        p_right <- p.gen.gamma(fitted.modified$lib.size[ind],
+                               params = params)
 
-      rel.sim[ind, j] <- sort(q.gen.gamma( u, params = params)$pi)[rank(mvn[ind, j],
-                                                                        ties.method = "random")]
+        n1 <- sum(sim_01[, j])
+        u <- runif(n1, p_left, p_right)
+
+        rel.sim[ind, j] <- sort(q.gen.gamma( u, params = params)$pi)[rank(mvn[ind, j],
+                                                                          ties.method = "random")]
+
+      }
     }
     fitted.modified$mu.est = -fitted.modified$mu.est
   }
