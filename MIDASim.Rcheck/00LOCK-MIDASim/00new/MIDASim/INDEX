@@ -1,0 +1,7 @@
+MIDASim                 Simulating Realistic Microbiome Data using
+                        MIDAS
+MIDASim.modify          Modifying MIDAS model
+MIDASim.setup           Fitting MIDAS model to microbiome data
+count.ibd               IBD microbiome dataset
+count.vaginal           MOMS-PI microbiome dataset
+throat.otu.tab          throat microbiome dataset

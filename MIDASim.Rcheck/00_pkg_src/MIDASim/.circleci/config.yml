@@ -1,0 +1,45 @@
+version: 2.1
+
+jobs:
+  build-linux:
+    docker:
+      - image: rocker/tidyverse:4.0
+    steps:
+      - checkout
+      - run:
+          name: Install package dependencies
+          command: R -e "devtools::install_deps(dep = TRUE, repos = 'http://cran.us.r-project.org')"
+      - run:
+          name: Build package
+          command: R CMD build .
+      - run:
+          name: Check package
+          command: R CMD check *tar.gz --no-manual
+
+  build-osx:
+    macos:
+      xcode: 14.2.0
+    steps:
+      - checkout
+      - run:
+          name: Install R
+          command: |
+            brew install r
+      - run:
+          name: Install dependencies and check package
+          command: |
+            R -e 'install.packages("devtools", repos = "http://cran.us.r-project.org")'
+            R -e 'devtools::install_deps(dep = TRUE, repos = "http://cran.us.r-project.org")'
+      - run: brew install pandoc
+      - run:
+          name: build package in osx
+          command: |
+            R CMD build .
+            R CMD check *tar.gz --no-manual
+
+workflows:
+  build:
+    jobs:
+      - build-linux
+      - build-osx
+
