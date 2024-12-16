@@ -97,8 +97,8 @@ check_taxa = function(taxa.1.prop, n.sample, Ztotal) {
 
   tmp <- -1
   exeed.id <- NULL
-  one.id <- which(taxa.1.prop == 1)
-  zero.id <- which(taxa.1.prop == 0)
+  one.id <- which(abs(taxa.1.prop - 1) < 10^-10)
+  zero.id <- which(taxa.1.prop < 10^-10)
 
   while(tmp - length(exeed.id) != 0) {
     exeed.id <- (which(taxa.1.prop/sum(taxa.1.prop) > n.sample/Ztotal + 10^-10))
