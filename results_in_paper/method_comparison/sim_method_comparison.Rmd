@@ -1,0 +1,1476 @@
+---
+title: "sim_method_comparison"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MIDASim)
+library(SparseDOSSA2)
+library(metaSPARSim) # install_gitlab("sysbiobig/metaSPARSim")
+library(dirmult)
+
+library(Matching)
+library(phyloseq)
+library(vegan)
+library(GUniFrac)
+library(GMPR) # install_github("lichen-lab/GMPR")
+library(microbiome) # BiocManager::install("microbiome")
+
+library(ggpubr)
+library(patchwork)
+library(tsne)
+library(umap)
+library(tidyverse)
+library(Rtsne)
+
+source("comparison_help_funcs.R")
+```
+
+# Simulate a single dataset
+
+```{r load data}
+data("count.ibd") # template
+data("count.vaginal") # template
+dat.ibd.ls <- normalize.rel(count.ibd)
+dat.vaginal.ls <- normalize.rel(count.vaginal)
+
+load("fitted_vaginal.RData") # fitted SparseDOSSA model for vaginal data
+load("fitted_ibd.RData") # fitted SparseDOSSA model for ibd data
+
+load("ibd.dm.RData") # fitted parameters of DM model for ibd data
+load("vaginal.dm.RData") # fitted parameters of DM model for vaginal data
+```
+
+
+```{r simulate by MIDASim-nonparametric}
+set.seed(1)
+fitted.midas.ibd <- MIDASim.setup(count.ibd)
+fitted.midas.ibd <- MIDASim.modify(fitted.midas.ibd)
+sim.midas.ibd <- MIDASim(fitted.midas.ibd)
+sim.rel.midas.ibd <- sim.midas.ibd$sim_rel
+sim.count.midas.ibd <- sim.midas.ibd$sim_count
+
+fitted.midas.vag <- MIDASim.setup(count.vaginal)
+fitted.midas.vag <- MIDASim.modify(fitted.midas.vag)
+sim.midas.vag <- MIDASim(fitted.midas.vag)
+sim.rel.midas.vag <- sim.midas.vag$sim_rel
+sim.count.midas.vag <- sim.midas.vag$sim_count
+```
+
+
+```{r simulate by MIDASim-parametric}
+set.seed(1)
+fitted.gg1.vag <- MIDASim.setup(count.vaginal, mode = "parametric")
+fitted.gg1.vag <- MIDASim.modify(fitted.gg1.vag)
+sim.gg1.vag <- MIDASim(fitted.gg1.vag)
+sim.count.gg1.vag <- sim.gg1.vag$sim_count
+sim.rel.gg1.vag <- sim.gg1.vag$sim_rel
+
+fitted.gg1.ibd <- MIDASim.setup(count.ibd, mode = "parametric")
+fitted.gg1.ibd <- MIDASim.modify(fitted.gg1.ibd)
+sim.gg1.ibd <- MIDASim(fitted.gg1.ibd)
+sim.count.gg1.ibd <- sim.gg1.ibd$sim_count
+sim.rel.gg1.ibd <- sim.gg1.ibd$sim_rel
+```
+
+
+```{r simulate by DM}
+lib.size.ibd <- rowSums(count.ibd)
+comm.p <- comm <- matrix(NA, nrow(count.ibd), ncol(count.ibd))
+set.seed(1)
+for (i in 1:nrow(count.ibd)) {
+  comm.p[i,] <- rdirichlet(1, ibd.dm$gamma)[1, ]
+  comm[i,] <- rmultinom(1, lib.size.ibd[i], prob = comm.p[i,])[,1]
+}
+sim.count.dm.ibd <- comm
+sim.rel.dm.ibd <- normalize.rel(comm)
+
+lib.size.vaginal <- rowSums(count.vaginal)
+comm.p <- comm <- matrix(NA, nrow(count.vaginal), ncol(count.vaginal))
+set.seed(1)
+for (i in 1:nrow(count.vaginal)) {
+  comm.p[i,] <- rdirichlet(1, vaginal.dm$gamma)[1, ]
+  comm[i,] <- rmultinom(1, lib.size.vaginal[i], prob=comm.p[i,])[,1]
+}
+sim.count.dm.vag <- comm
+sim.rel.dm.vag <- normalize.rel(comm)
+```
+
+
+```{r simulate by sparsedossa}
+set.seed(1)
+sim_vaginal <- SparseDOSSA2(template = fitted_vaginal,
+                            n_sample = nrow(count.vaginal),
+                            new_feature = FALSE,
+                            spike_metadata = "none")
+
+sim_ibd <- SparseDOSSA2(template = fitted_ibd,
+                        n_sample = nrow(count.ibd),
+                        new_feature = FALSE,
+                        spike_metadata = "none")
+
+sim.count.sparsed.vag <- t(sim_vaginal$simulated_data)
+sim.count.sparsed.ibd <- t(sim_ibd$simulated_data)
+
+sim.rel.sparsed.vag <- normalize.rel(sim.count.sparsed.vag) 
+sim.rel.sparsed.ibd <- normalize.rel(sim.count.sparsed.ibd) 
+```
+
+
+```{r simulate by metasparsim}
+set.seed(1)
+gmpr.size.ibd <- GMPR::GMPR(as.data.frame(count.ibd))
+count.ibd.norm <- count.ibd/gmpr.size.ibd
+paras_ibd = estimate_parameter_from_data(t(count.ibd), 
+                                         t(count.ibd.norm), 
+                                         list(group=seq(1, nrow(count.ibd))),
+                                         perc_not_zeros = 0)
+metaspar_sim_ibd <- metaSPARSim(paras_ibd)
+sim.count.metas.ibd <- t(metaspar_sim_ibd$counts)
+sim.rel.metas.ibd <- normalize.rel(sim.count.metas.ibd)
+
+gmpr.size.vag <- GMPR::GMPR(as.data.frame(count.vaginal))
+count.vag.norm <- count.vaginal/gmpr.size.vag
+paras_vag <- estimate_parameter_from_data(t(count.vaginal), 
+                                          t(count.vag.norm), 
+                                          list(group=seq(1, nrow(count.vaginal))),
+                                          perc_not_zeros = 0)
+metaspar_sim_vag <- metaSPARSim(paras_vag)
+sim.count.metas.vag <- t(metaspar_sim_vag$counts)
+sim.rel.metas.vag <- normalize.rel(sim.count.metas.vag)
+```
+
+
+# PCoA
+
+```{r pcoa generate}
+# midasim-nonparametric
+pcoa.midas.ibd.jac <- draw_pcoa_compare(dat.ibd.ls, sim.rel.midas.ibd,
+                                        color = c("black", "red"),
+                                        shape = c(16, 17),
+                                        title = "A",
+                                        xy = c(0,1),
+                                        distance = "jaccard")
+
+pcoa.midas.ibd.bray <- draw_pcoa_compare(dat.ibd.ls, sim.rel.midas.ibd,
+                                         color = c("black", "red"),
+                                         shape = c(16, 17),
+                                         title = "B",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+pcoa.midas.vag.jac <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.midas.vag,
+                                        color = c("black", "red"),
+                                        shape = c(16, 17),
+                                        title = "C",
+                                        xy = c(0,0),
+                                        distance = "jaccard")
+
+pcoa.midas.vag.bray <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.midas.vag,
+                                         color = c("black", "red"),
+                                         shape = c(16, 17),
+                                         title = "D",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+# midasim - parametric
+pcoa.midas.gg.ibd.jac <- draw_pcoa_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                           color = c("black", "deeppink"),
+                                           shape = c(16, 17),
+                                           title = "E",
+                                           xy = c(0,1),
+                                           distance = "jaccard")+
+  scale_y_continuous(trans = "reverse", 
+                     breaks = c(0.2, 0.1, 0, -0.1, -0.2),
+                     labels = -c(0.2, 0.1, 0, -0.1, -0.2))
+
+pcoa.midas.gg.ibd.bray <- draw_pcoa_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                            color = c("black", "deeppink"),
+                                            shape = c(16, 17),
+                                            title = "F",
+                                            xy = c(0,0),
+                                            distance = "bray")
+
+pcoa.midas.gg.vag.jac <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.gg1.vag,
+                                           color = c("black", "deeppink"),
+                                           shape = c(16, 17),
+                                           title = "G",
+                                           xy = c(0,0),
+                                           distance = "jaccard")+
+  scale_x_continuous(trans = "reverse", 
+                     breaks = c(0.4, 0.2, 0, -0.2),
+                     labels = -c(0.4, 0.2, 0, -0.2))
+
+pcoa.midas.gg.vag.bray <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.gg1.vag,
+                                            color = c("black", "deeppink"),
+                                            shape = c(16, 17),
+                                            title = "H",
+                                            xy = c(0,0),
+                                            distance = "bray")
+
+
+# dm
+
+pcoa.dm.ibd.jac <- draw_pcoa_compare(dat.ibd.ls, sim.rel.dm.ibd,
+                                     color = c("black", "blue"),
+                                     shape = c(16, 17),
+                                     title = "I",
+                                     xy = c(0,1),
+                                     distance = "jaccard")
+
+pcoa.dm.ibd.bray <- draw_pcoa_compare(dat.ibd.ls, sim.rel.dm.ibd,
+                                      color = c("black", "blue"),
+                                      shape = c(16, 17),
+                                      title = "J",
+                                      xy = c(0,0),
+                                      distance = "bray")
+
+pcoa.dm.vag.jac <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.dm.vag,
+                                     color = c("black", "blue"),
+                                     shape = c(16, 17),
+                                     title = "K",
+                                     xy = c(0,0),
+                                     distance = "jaccard")+
+  scale_x_reverse(breaks = c(0.2, 0, -0.2, -0.4),
+                  labels = -c(0.2, 0, -0.2, -0.4))
+
+pcoa.dm.vag.bray <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.dm.vag,
+                                      color = c("black", "blue"),
+                                      shape = c(16, 17),
+                                      title = "L",
+                                      xy = c(0,0),
+                                      distance = "bray")
+
+
+
+# metasparsim
+
+pcoa.metas.ibd.jac <- draw_pcoa_compare(dat.ibd.ls, sim.rel.metas.ibd,
+                                        color = c("black", "gold"),
+                                        shape = c(16, 17),
+                                        title = "M",
+                                        xy = c(0,1),
+                                        distance = "jaccard")
+
+pcoa.metas.ibd.bray <- draw_pcoa_compare(dat.ibd.ls, sim.rel.metas.ibd,
+                                         color = c("black", "gold"),
+                                         shape = c(16, 17),
+                                         title = "N",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+pcoa.metas.vag.jac <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.metas.vag,
+                                        color = c("black", "gold"),
+                                        shape = c(16, 17),
+                                        title = "O",
+                                        xy = c(0,0),
+                                        distance = "jaccard")
+
+pcoa.metas.vag.bray <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.metas.vag,
+                                         color = c("black", "gold"),
+                                         shape = c(16, 17),
+                                         title = "P",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+
+
+# sparsedossa
+
+pcoa.sparsed.ibd.jac <- draw_pcoa_compare(dat.ibd.ls, sim.rel.sparsed.ibd,
+                                          color = c("black", "darkgreen"),
+                                          shape = c(16, 17),
+                                          title = "Q",
+                                          xy = c(1,1),
+                                          distance = "jaccard")
+
+pcoa.sparsed.ibd.bray <- draw_pcoa_compare(dat.ibd.ls, sim.rel.sparsed.ibd,
+                                           color = c("black", "darkgreen"),
+                                           shape = c(16, 17),
+                                           title = "R",
+                                           xy = c(1,0),
+                                           distance = "bray")
+
+
+pcoa.sparsed.vag.jac <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.sparsed.vag,
+                                          color = c("black", "darkgreen"),
+                                          shape = c(16, 17),
+                                          title = "S",
+                                          xy = c(1,0),
+                                          distance = "jaccard")+
+  scale_x_reverse(breaks = c(0.2, 0, -0.2, -0.4),
+                  labels = -c(0.2, 0, -0.2, -0.4))
+
+pcoa.sparsed.vag.bray <- draw_pcoa_compare(dat.vaginal.ls, sim.rel.sparsed.vag,
+                                           color = c("black", "darkgreen"),
+                                           shape = c(16, 17),
+                                           title = "T",
+                                           xy = c(1,0),
+                                           distance = "bray")+
+  scale_x_reverse(breaks = c(0.5, 0.25, 0, -0.25, -0.5),
+                  labels = -c(0.5, 0.25, 0, -0.25, -0.5))
+
+
+
+```
+
+
+```{r pcoa wrap, fig.height=7, fig.width=7}
+row1 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MIDASim (nonparametric)", angle = 90) + theme_void() 
+
+row2 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MIDASim (parametric)", angle = 90) + theme_void() 
+
+row3 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="D-M", angle = 90) + theme_void() 
+
+row4 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MetaSPARSim", angle = 90) + theme_void() 
+
+row5 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="SparseDOSSA", angle = 90) + theme_void() 
+
+
+col1 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="IBD: Jaccard") + theme_void() 
+
+col2 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="IBD: Bray-Curtis") + theme_void() 
+
+col3 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MOMS-PI: Jaccard") + theme_void()
+
+col4 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MOMS-PI: Bray-Curtis") +  theme_void() 
+
+layoutplot <- "
+#ccccddddmmmmnnnn
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+"
+
+plotlist_pcoa <- list(a = row1, b = row2, c = col1, d = col2,
+                      e = pcoa.midas.ibd.jac, f = pcoa.midas.ibd.bray, 
+                      i = pcoa.midas.vag.jac, j = pcoa.midas.vag.bray,
+                      g = pcoa.midas.gg.ibd.jac, h = pcoa.midas.gg.ibd.bray,
+                      k = pcoa.midas.gg.vag.jac, l = pcoa.midas.gg.vag.bray ,
+                      p = pcoa.dm.ibd.jac, q = pcoa.dm.ibd.bray ,
+                      r = pcoa.dm.vag.jac , s = pcoa.dm.vag.bray ,
+                      u = pcoa.metas.ibd.jac , v = pcoa.metas.ibd.bray ,
+                      w = pcoa.metas.vag.jac , x = pcoa.metas.vag.bray ,
+                      m = col3, n = col4,
+                      o = row3, t = row4,
+                      A = row5, B = pcoa.sparsed.ibd.jac, 
+                      C = pcoa.sparsed.ibd.bray, D = pcoa.sparsed.vag.jac,
+                      E = pcoa.sparsed.vag.bray)
+
+wrap_plots(plotlist_pcoa, guides = 'collect', design = layoutplot)
+```
+
+
+# T-SNE 
+
+```{r tsne generate}
+# midasim - nonparametric
+tsne.midas.ibd.jac <- draw_tsne_compare(dat.ibd.ls, sim.rel.midas.ibd,
+                                        color = c("black", "red"),
+                                        shape = c(16, 17),
+                                        title = "A",
+                                        xy = c(0,1),
+                                        distance = "jaccard")
+
+tsne.midas.ibd.bray <- draw_tsne_compare(dat.ibd.ls, sim.rel.midas.ibd,
+                                         color = c("black", "red"),
+                                         shape = c(16, 17),
+                                         title = "B",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+tsne.midas.vag.jac <- draw_tsne_compare(dat.vaginal.ls, sim.rel.midas.vag,
+                                        color = c("black", "red"),
+                                        shape = c(16, 17),
+                                        title = "C",
+                                        xy = c(0,0),
+                                        distance = "jaccard")
+
+tsne.midas.vag.bray <- draw_tsne_compare(dat.vaginal.ls, sim.rel.midas.vag,
+                                         color = c("black", "red"),
+                                         shape = c(16, 17),
+                                         title = "D",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+# midasim - parametric
+tsne.midas.gg.ibd.jac <- draw_tsne_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                           color = c("black", "deeppink"),
+                                           shape = c(16, 17),
+                                           title = "E",
+                                           xy = c(0,1),
+                                           distance = "jaccard")
+
+tsne.midas.gg.ibd.bray <- draw_tsne_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                            color = c("black", "deeppink"),
+                                            shape = c(16, 17),
+                                            title = "F",
+                                            xy = c(0,0),
+                                            distance = "bray")
+
+tsne.midas.gg.vag.jac <- draw_tsne_compare(dat.vaginal.ls, sim.rel.gg1.vag,
+                                           color = c("black", "deeppink"),
+                                           shape = c(16, 17),
+                                           title = "G",
+                                           xy = c(0,0),
+                                           distance = "jaccard")+
+  scale_x_reverse(breaks = c(-10, 0, 10),
+                  labels = -c(-10, 0, 10))
+
+tsne.midas.gg.vag.bray <- draw_tsne_compare(dat.vaginal.ls, sim.rel.gg1.vag,
+                                            color = c("black", "deeppink"),
+                                            shape = c(16, 17),
+                                            title = "H",
+                                            xy = c(0,0),
+                                            distance = "bray")
+
+
+# dm
+
+tsne.dm.ibd.jac <- draw_tsne_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                     color = c("black", "blue"),
+                                     shape = c(16, 17),
+                                     title = "I",
+                                     xy = c(0,1),
+                                     distance = "jaccard")
+
+tsne.dm.ibd.bray <- draw_tsne_compare(dat.ibd.ls, sim.rel.dm.ibd,
+                                      color = c("black", "blue"),
+                                      shape = c(16, 17),
+                                      title = "J",
+                                      xy = c(0,0),
+                                      distance = "bray")
+
+tsne.dm.vag.jac <- draw_tsne_compare(dat.vaginal.ls, sim.rel.dm.vag,
+                                     color = c("black", "blue"),
+                                     shape = c(16, 17),
+                                     title = "K",
+                                     xy = c(0,0),
+                                     distance = "jaccard")
+
+tsne.dm.vag.bray <- draw_tsne_compare(dat.vaginal.ls, sim.rel.dm.vag,
+                                      color = c("black", "blue"),
+                                      shape = c(16, 17),
+                                      title = "L",
+                                      xy = c(0,0),
+                                      distance = "bray")
+
+
+
+# metasparsim
+
+tsne.metas.ibd.jac <- draw_tsne_compare(dat.ibd.ls, sim.rel.metas.ibd,
+                                        color = c("black", "gold"),
+                                        shape = c(16, 17),
+                                        title = "M",
+                                        xy = c(0,1),
+                                        distance = "jaccard")
+
+tsne.metas.ibd.bray <- draw_tsne_compare(dat.ibd.ls, sim.rel.metas.ibd,
+                                         color = c("black", "gold"),
+                                         shape = c(16, 17),
+                                         title = "N",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+tsne.metas.vag.jac <- draw_tsne_compare(dat.vaginal.ls, sim.rel.metas.vag,
+                                        color = c("black", "gold"),
+                                        shape = c(16, 17),
+                                        title = "O",
+                                        xy = c(0,0),
+                                        distance = "jaccard")
+
+tsne.metas.vag.bray <- draw_tsne_compare(dat.vaginal.ls, sim.rel.metas.vag,
+                                         color = c("black", "gold"),
+                                         shape = c(16, 17),
+                                         title = "P",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+
+
+# sparsedossa
+
+tsne.sparsed.ibd.jac <- draw_tsne_compare(dat.ibd.ls, sim.rel.sparsed.ibd,
+                                          color = c("black", "darkgreen"),
+                                          shape = c(16, 17),
+                                          title = "Q",
+                                          xy = c(1,1),
+                                          distance = "jaccard")
+
+tsne.sparsed.ibd.bray <- draw_tsne_compare(dat.ibd.ls, sim.rel.sparsed.ibd,
+                                           color = c("black", "darkgreen"),
+                                           shape = c(16, 17),
+                                           title = "R",
+                                           xy = c(1,0),
+                                           distance = "bray")
+
+
+tsne.sparsed.vag.jac <- draw_tsne_compare(dat.vaginal.ls, sim.rel.sparsed.vag,
+                                          color = c("black", "darkgreen"),
+                                          shape = c(16, 17),
+                                          title = "S",
+                                          xy = c(1,0),
+                                          distance = "jaccard")
+
+tsne.sparsed.vag.bray <- draw_tsne_compare(dat.vaginal.ls, sim.rel.sparsed.vag,
+                                           color = c("black", "darkgreen"),
+                                           shape = c(16, 17),
+                                           title = "T",
+                                           xy = c(1,0),
+                                           distance = "bray")+
+  scale_x_reverse(breaks = c(20, 10, 0, -10, -20),
+                  labels = -c(20, 10, 0, -10, -20))
+
+```
+
+
+```{r tsne wrap, fig.height=7, fig.width=7}
+row1 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MIDASim (nonparametric)", angle = 90) + theme_void() 
+
+row2 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MIDASim (parametric)", angle = 90) + theme_void() 
+
+row3 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="D-M", angle = 90) + theme_void() 
+
+row4 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MetaSPARSim", angle = 90) + theme_void() 
+
+row5 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="SparseDOSSA", angle = 90) + theme_void() 
+
+
+col1 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="IBD: Jaccard") + theme_void() 
+
+col2 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="IBD: Bray-Curtis") + theme_void() 
+
+col3 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MOMS-PI: Jaccard") + theme_void()
+
+col4 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MOMS-PI: Bray-Curtis") +  theme_void() 
+
+layoutplot <- "
+#ccccddddmmmmnnnn
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+"
+
+plotlist_tsne <- list(a = row1, b = row2, c = col1, d = col2,
+                      e = tsne.midas.ibd.jac, f = tsne.midas.ibd.bray, 
+                      i = tsne.midas.vag.jac, j = tsne.midas.vag.bray,
+                      g = tsne.midas.gg.ibd.jac, h = tsne.midas.gg.ibd.bray,
+                      k = tsne.midas.gg.vag.jac, l = tsne.midas.gg.vag.bray ,
+                      p = tsne.dm.ibd.jac, q = tsne.dm.ibd.bray ,
+                      r = tsne.dm.vag.jac , s = tsne.dm.vag.bray ,
+                      u = tsne.metas.ibd.jac , v = tsne.metas.ibd.bray ,
+                      w = tsne.metas.vag.jac , x = tsne.metas.vag.bray ,
+                      m = col3, n = col4,
+                      o = row3, t = row4,
+                      A = row5, B = tsne.sparsed.ibd.jac, 
+                      C = tsne.sparsed.ibd.bray, D = tsne.sparsed.vag.jac,
+                      E = tsne.sparsed.vag.bray)
+
+wrap_plots(plotlist_tsne, guides = 'collect', design = layoutplot)
+```
+
+# UMAP
+
+```{r umap generate}
+# midasim - nonparametric
+umap.midas.ibd.jac <- draw_umap_compare(dat.ibd.ls, sim.rel.midas.ibd,
+                                        color = c("black", "red"),
+                                        shape = c(16, 17),
+                                        title = "A",
+                                        xy = c(0,1),
+                                        distance = "jaccard")
+
+umap.midas.ibd.bray <- draw_umap_compare(dat.ibd.ls, sim.rel.midas.ibd,
+                                         color = c("black", "red"),
+                                         shape = c(16, 17),
+                                         title = "B",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+umap.midas.vag.jac <- draw_umap_compare(dat.vaginal.ls, sim.rel.midas.vag,
+                                        color = c("black", "red"),
+                                        shape = c(16, 17),
+                                        title = "C",
+                                        xy = c(0,0),
+                                        distance = "jaccard")
+
+umap.midas.vag.bray <- draw_umap_compare(dat.vaginal.ls, sim.rel.midas.vag,
+                                         color = c("black", "red"),
+                                         shape = c(16, 17),
+                                         title = "D",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+# midasim - parametric
+umap.midas.gg.ibd.jac <- draw_umap_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                           color = c("black", "deeppink"),
+                                           shape = c(16, 17),
+                                           title = "E",
+                                           xy = c(0,1),
+                                           distance = "jaccard")+
+  scale_y_continuous(trans = "reverse",
+                     breaks = c(6, 4, 2, 0, -2, -4),
+                     labels = -c(6, 4, 2, 0, -2, -4))
+
+umap.midas.gg.ibd.bray <- draw_umap_compare(dat.ibd.ls, sim.rel.gg1.ibd,
+                                            color = c("black", "deeppink"),
+                                            shape = c(16, 17),
+                                            title = "F",
+                                            xy = c(0,0),
+                                            distance = "bray")
+
+umap.midas.gg.vag.jac <- draw_umap_compare(dat.vaginal.ls, sim.rel.gg1.vag,
+                                           color = c("black", "deeppink"),
+                                           shape = c(16, 17),
+                                           title = "G",
+                                           xy = c(0,0),
+                                           distance = "jaccard")+
+  scale_x_reverse(breaks = c(-2, 0, 2),
+                  labels = -c(-2, 0, 2))+
+  scale_y_reverse(breaks = seq(-5, 2.5, 2.5),
+                  labels = -seq(-5, 2.5, 2.5))
+
+umap.midas.gg.vag.bray <- draw_umap_compare(dat.vaginal.ls, sim.rel.gg1.vag,
+                                            color = c("black", "deeppink"),
+                                            shape = c(16, 17),
+                                            title = "H",
+                                            xy = c(0,0),
+                                            distance = "bray")
+
+
+# dm
+
+umap.dm.ibd.jac <- draw_umap_compare(dat.ibd.ls, sim.rel.dm.ibd,
+                                     color = c("black", "blue"),
+                                     shape = c(16, 17),
+                                     title = "I",
+                                     xy = c(0,1),
+                                     distance = "jaccard")
+
+umap.dm.ibd.bray <- draw_umap_compare(dat.ibd.ls, sim.rel.dm.ibd,
+                                      color = c("black", "blue"),
+                                      shape = c(16, 17),
+                                      title = "J",
+                                      xy = c(0,0),
+                                      distance = "bray")
+
+umap.dm.vag.jac <- draw_umap_compare(dat.vaginal.ls, sim.rel.dm.vag,
+                                     color = c("black", "blue"),
+                                     shape = c(16, 17),
+                                     title = "K",
+                                     xy = c(0,0),
+                                     distance = "jaccard")
+
+umap.dm.vag.bray <- draw_umap_compare(dat.vaginal.ls, sim.rel.dm.vag,
+                                      color = c("black", "blue"),
+                                      shape = c(16, 17),
+                                      title = "L",
+                                      xy = c(0,0),
+                                      distance = "bray")
+
+
+
+# metasparsim
+
+umap.metas.ibd.jac <- draw_umap_compare(dat.ibd.ls, sim.rel.metas.ibd,
+                                        color = c("black", "gold"),
+                                        shape = c(16, 17),
+                                        title = "M",
+                                        xy = c(0,1),
+                                        distance = "jaccard")
+
+umap.metas.ibd.bray <- draw_umap_compare(dat.ibd.ls, sim.rel.metas.ibd,
+                                         color = c("black", "gold"),
+                                         shape = c(16, 17),
+                                         title = "N",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+umap.metas.vag.jac <- draw_umap_compare(dat.vaginal.ls, sim.rel.metas.vag,
+                                        color = c("black", "gold"),
+                                        shape = c(16, 17),
+                                        title = "O",
+                                        xy = c(0,0),
+                                        distance = "jaccard")
+
+umap.metas.vag.bray <- draw_umap_compare(dat.vaginal.ls, sim.rel.metas.vag,
+                                         color = c("black", "gold"),
+                                         shape = c(16, 17),
+                                         title = "P",
+                                         xy = c(0,0),
+                                         distance = "bray")
+
+
+
+# sparsedossa
+
+umap.sparsed.ibd.jac <- draw_umap_compare(dat.ibd.ls, sim.rel.sparsed.ibd,
+                                          color = c("black", "darkgreen"),
+                                          shape = c(16, 17),
+                                          title = "Q",
+                                          xy = c(1,1),
+                                          distance = "jaccard")
+
+umap.sparsed.ibd.bray <- draw_umap_compare(dat.ibd.ls, sim.rel.sparsed.ibd,
+                                           color = c("black", "darkgreen"),
+                                           shape = c(16, 17),
+                                           title = "R",
+                                           xy = c(1,0),
+                                           distance = "bray")
+
+
+umap.sparsed.vag.jac <- draw_umap_compare(dat.vaginal.ls, sim.rel.sparsed.vag,
+                                          color = c("black", "darkgreen"),
+                                          shape = c(16, 17),
+                                          title = "S",
+                                          xy = c(1,0),
+                                          distance = "jaccard")
+
+umap.sparsed.vag.bray <- draw_umap_compare(dat.vaginal.ls, sim.rel.sparsed.vag,
+                                           color = c("black", "darkgreen"),
+                                           shape = c(16, 17),
+                                           title = "T",
+                                           xy = c(1,0),
+                                           distance = "bray")+
+  scale_x_reverse(breaks = seq(-5, 10, 5),
+                  labels = -seq(-5, 10, 5))
+
+
+
+```
+
+
+```{r umap wrap, fig.height=7, fig.width=7}
+row1 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MIDASim (nonparametric)", angle = 90) + theme_void() 
+
+row2 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MIDASim (parametric)", angle = 90) + theme_void() 
+
+row3 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="D-M", angle = 90) + theme_void() 
+
+row4 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MetaSPARSim", angle = 90) + theme_void() 
+
+row5 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="SparseDOSSA", angle = 90) + theme_void() 
+
+col1 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="IBD: Jaccard") + theme_void() 
+
+col2 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="IBD: Bray-Curtis") + theme_void() 
+
+col3 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MOMS-PI: Jaccard") + theme_void()
+
+col4 <- ggplot() + annotate(geom = 'text', x=1, y=1, label="MOMS-PI: Bray-Curtis") +  theme_void()
+
+layoutplot <- "
+#ccccddddmmmmnnnn
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+aeeeeffffiiiijjjj
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+bgggghhhhkkkkllll
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+oppppqqqqrrrrssss
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+tuuuuvvvvwwwwxxxx
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+ABBBBCCCCDDDDEEEE
+"
+
+plotlist_umap <- list(a = row1, b = row2, c = col1, d = col2,
+                      e = umap.midas.ibd.jac, f = umap.midas.ibd.bray, 
+                      i = umap.midas.vag.jac, j = umap.midas.vag.bray,
+                      g = umap.midas.gg.ibd.jac, h = umap.midas.gg.ibd.bray,
+                      k = umap.midas.gg.vag.jac, l = umap.midas.gg.vag.bray ,
+                      p = umap.dm.ibd.jac, q = umap.dm.ibd.bray ,
+                      r = umap.dm.vag.jac , s = umap.dm.vag.bray ,
+                      u = umap.metas.ibd.jac , v = umap.metas.ibd.bray ,
+                      w = umap.metas.vag.jac , x = umap.metas.vag.bray ,
+                      m = col3, n = col4,
+                      o = row3, t = row4,
+                      A = row5, B = umap.sparsed.ibd.jac, 
+                      C = umap.sparsed.ibd.bray, D = umap.sparsed.vag.jac,
+                      E = umap.sparsed.vag.bray)
+
+wrap_plots(plotlist_umap, guides = 'collect', design = layoutplot)
+```
+
+
+# table1 p-values
+
+
+```{r table1 ibd midasim-nonpara generate}
+set.seed(1)
+sim.rel.midas.ibd.20 <- matrix(nrow = nrow(count.ibd)*20, ncol = ncol(count.ibd))
+
+for (i in 1:20) {
+  tmp <- MIDASim(fitted.midas.ibd)
+  sim.rel.midas.ibd.20[(nrow(count.ibd)*(i-1) + 1):(nrow(count.ibd)*i), ] <- tmp$sim_rel
+}
+
+beta_alpha_tests(count.ibd, sim.rel.midas.ibd.20)
+```
+
+
+```{r table1 ibd midasim-para generate}
+set.seed(1)
+sim.rel.gg1.ibd.20 <- matrix(nrow = nrow(count.ibd)*20, ncol = ncol(count.ibd))
+for (i in 1:20) {
+  tmp <- MIDASim(fitted.gg1.ibd)
+  sim.rel.gg1.ibd.20[(nrow(count.ibd)*(i-1) + 1):(nrow(count.ibd)*i), ] <- tmp$sim_rel
+}
+
+beta_alpha_tests(count.ibd, sim.rel.gg1.ibd.20)
+```
+
+
+```{r table1 vag midasim-nonpara generate}
+set.seed(1)
+sim.rel.midas.vag.20 = matrix(nrow = nrow(count.vaginal)*20, ncol = ncol(count.vaginal))
+
+for (i in 1:20) {
+  tmp = MIDASim(fitted.midas.vag)
+  sim.rel.midas.vag.20[(nrow(count.vaginal)*(i-1) + 1):(nrow(count.vaginal)*i), ] = tmp$sim_rel
+}
+
+beta_alpha_tests(count.vaginal, sim.rel.midas.vag.20)
+```
+
+
+```{r table1 vag midasim-para generate}
+set.seed(1)
+sim.rel.gg1.vag.20 = matrix(nrow = nrow(count.vaginal)*20, ncol = ncol(count.vaginal))
+
+for (i in 1:20) {
+  tmp = MIDASim(fitted.gg1.vag)
+  sim.rel.gg1.vag.20[(nrow(count.vaginal)*(i-1) + 1):(nrow(count.vaginal)*i), ] = tmp$sim_rel
+}
+
+beta_alpha_tests(count.vaginal, sim.rel.gg1.vag.20)
+```
+
+
+# ks test p-values in ecdf plot
+
+```{r ks test}
+lapply(get_ks_p(count.ibd, sim.rel.midas.ibd.20), mean)
+
+lapply(get_ks_p(count.ibd, sim.rel.gg1.ibd.20), mean)
+
+lapply(get_ks_p(count.vaginal, sim.rel.midas.vag.20), mean)
+
+lapply(get_ks_p(count.vaginal, sim.rel.gg1.vag.20), mean)
+```
+
+
+# ecdf plots
+
+```{r ibd ecdf prepare}
+otu.tab <- count.ibd
+
+tmp <- rbind(dat.ibd.ls, 
+             sim.rel.midas.ibd,
+             sim.rel.gg1.ibd,
+             sim.rel.dm.ibd,
+             sim.rel.metas.ibd,
+             sim.rel.sparsed.ibd )
+method.names <- c("Original",
+                  "MIDASim (nonparametric)",
+                  "MIDASim (parametric)",
+                  "DM",
+                  "MetaSPARSim",
+                  "SparseDOSSA")
+
+rownames(tmp) <- 1:nrow(tmp)
+OTU <- otu_table( tmp, taxa_are_rows = F)
+SAM <- sample_data( data.frame(
+  name = rownames(tmp),
+  type = rep(method.names, 
+             each = nrow(otu.tab)) ))
+sample_names(SAM) <- SAM$name
+dt <- phyloseq(OTU,SAM)
+
+D.jaccard.ibd <- vegdist(dt@otu_table@.Data, 
+                         method="jaccard", binary = T)
+D.bc.ibd <- vegdist(dt@otu_table@.Data, method="bray")
+
+bd.jaccard.ibd <- betadisper(D.jaccard.ibd,
+                             as.factor(dt@sam_data$type), 
+                             type = "centroid", 
+                             bias.adjust = FALSE)
+
+bd.bc.ibd <- betadisper(D.bc.ibd, 
+                        as.factor(dt@sam_data$type),
+                        type = "centroid", 
+                        bias.adjust = FALSE)
+
+group1 <- 1:nrow(otu.tab)
+group2 <- (nrow(otu.tab)+1):(2*nrow(otu.tab))
+group3 <- (2*nrow(otu.tab)+1):(3*nrow(otu.tab))
+group4 <- (3*nrow(otu.tab)+1):(4*nrow(otu.tab))
+group5 <- (4*nrow(otu.tab)+1):(5*nrow(otu.tab))
+group6 <- (5*nrow(otu.tab)+1):(6*nrow(otu.tab))
+```
+
+
+```{r ibd ecdf jaccard}
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.jaccard.ibd$distances )
+)
+quan <- function(x){
+  return(
+    c(ecdf(df$value[group1])(x),
+      ecdf(df$value[group2])(x),
+      ecdf(df$value[group3])(x),
+      ecdf(df$value[group4])(x),
+      ecdf(df$value[group5])(x),
+      ecdf(df$value[group6])(x)
+    ))
+}
+
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.jaccard.ibd$distances ),
+  quan1 = rep(quan(0.4), each = nrow(otu.tab)),
+  quan2 = rep(quan(0.45), each = nrow(otu.tab)),
+  quan3 = rep(quan(0.5), each = nrow(otu.tab)),
+  quan4 = rep(quan(0.55), each = nrow(otu.tab)),
+  quan5 = rep(quan(0.6), each = nrow(otu.tab))
+)
+
+df$type <- factor(df$type, 
+                  levels = method.names)
+
+cdf.jaccard.ibd.label <- df %>% 
+  ggplot()+
+  stat_ecdf(aes(value, group = type, color = type), geom = "step",size=0.8,alpha=0.7)+
+  geom_point(aes(x=0.4,
+                 y=quan1, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.45,
+                 y=quan2, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.5,
+                 y=quan3, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.55,
+                 y=quan4, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.6,
+                 y=quan5, group = type,
+                 color = type, shape = type), size=2)+
+  ylab("Empirical Probability")+
+  xlab("Distance to Centroids")+
+  labs(color = "IBD: Jaccard", shape = "IBD: Jaccard")+
+  scale_color_manual(values=c("black","red","deeppink","blue","gold","darkgreen"))+
+  scale_shape_manual(values = c(8,2,0,1,5, 4))+
+  theme_bw()+
+  theme(legend.position = c(0.2,0.755),
+        legend.background = element_rect(fill='transparent'),
+        axis.title.x = element_blank()
+  )+
+  annotate("text", x = 0.543, y = 0.18, 
+           label = "K–S p-value: \nMIDASim (nonparametric)=0.6531 \nMIDASim (parametric)=0.8017 \nD-M=0.0001 \nMetaSPARSim=0.0002 \nSparseDOSSA=0.0018",
+           hjust = 0) 
+
+cdf.jaccard.ibd.label
+```
+
+
+```{r ibd ecdf bc}
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.bc.ibd$distances )
+)
+quan <- function(x){
+  return(
+    c(ecdf(df$value[group1])(x),
+         ecdf(df$value[group2])(x),
+         ecdf(df$value[group3])(x),
+         ecdf(df$value[group4])(x),
+         ecdf(df$value[group5])(x),
+      ecdf(df$value[group6])(x)
+  ))
+}
+
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.bc.ibd$distances ),
+  quan1 = rep(quan(0.4), each = nrow(otu.tab)),
+  quan2 = rep(quan(0.45), each = nrow(otu.tab)),
+  quan3 = rep(quan(0.5), each = nrow(otu.tab)),
+  quan4 = rep(quan(0.55), each = nrow(otu.tab)),
+  quan5 = rep(quan(0.6), each = nrow(otu.tab))
+  )
+
+df$type <- factor(df$type, 
+                 levels = method.names)
+
+cdf.bc.ibd.label <- df %>% 
+  ggplot()+
+   stat_ecdf(aes(value, group = type, color = type), geom = "step",size=0.8,alpha=0.7)+
+   geom_point(aes(x=0.4,
+                  y=quan1, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.45,
+                  y=quan2, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.5,
+                  y=quan3, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.55,
+                  y=quan4, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.6,
+                  y=quan5, group = type,
+                  color = type, shape = type), size=2)+
+  ylab("Empirical Probability")+
+  xlab("Distance to Centroids")+
+  scale_color_manual(values=c("black","red","deeppink","blue","gold","darkgreen"))+
+  scale_shape_manual(values = c(8,2,0,1,5,4))+
+  theme_bw()+
+  theme(legend.position = "none")+
+  annotate("text", x = 0.55, y = 0.18, 
+           label = "K–S p-value: \nMIDASim (nonparametric)=0.3960 \nMIDASim (parametric)=0.1686 \nD-M<0.0001 \nMetaSPARSim=0.0018  \nSparseDOSSA<0.0001",
+           hjust = 0) 
+
+cdf.bc.ibd.label
+```
+
+
+```{r vaginal ecdf prepare}
+otu.tab <- count.vaginal
+
+tmp <- rbind(normalize.rel(otu.tab), 
+            sim.rel.midas.vag,
+            sim.rel.gg1.vag,
+            sim.rel.dm.vag,
+            sim.rel.metas.vag,
+            sim.rel.sparsed.vag
+            )
+method.names <- c("Original",
+                  "MIDASim (nonparametric)",
+                  "MIDASim (parametric)",
+                  "DM",
+                  "MetaSPARSim",
+                  "SparseDOSSA")
+
+rownames(tmp) <- 1:nrow(tmp)
+OTU <- otu_table( tmp, taxa_are_rows = F)
+SAM = sample_data( data.frame(
+  name = rownames(tmp),
+  type = rep(method.names, 
+             each = nrow(otu.tab)) ))
+sample_names(SAM) <- SAM$name
+dt = phyloseq(OTU,SAM)
+  
+D.jaccard.vag = vegdist(dt@otu_table@.Data, 
+                        method="jaccard", binary = T)
+D.bc.vag = vegdist(dt@otu_table@.Data, method="bray")
+  
+bd.jaccard.vag = betadisper(D.jaccard.vag,
+                              as.factor(dt@sam_data$type), 
+                              type = "centroid", 
+                              bias.adjust = FALSE)
+
+bd.bc.vag = betadisper(D.bc.vag, 
+                       as.factor(dt@sam_data$type),
+                       type = "centroid", 
+                       bias.adjust = FALSE)
+
+group1 = 1:nrow(otu.tab)
+group2 = (nrow(otu.tab)+1):(2*nrow(otu.tab))
+group3 = (2*nrow(otu.tab)+1):(3*nrow(otu.tab))
+group4 = (3*nrow(otu.tab)+1):(4*nrow(otu.tab))
+group5 = (4*nrow(otu.tab)+1):(5*nrow(otu.tab))
+group6 = (5*nrow(otu.tab)+1):(6*nrow(otu.tab))
+```
+
+
+```{r vaginal ecdf jaccard}
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.jaccard.vag$distances )
+)
+quan <- function(x){
+  return(
+    c(ecdf(df$value[group1])(x),
+      ecdf(df$value[group2])(x),
+      ecdf(df$value[group3])(x),
+      ecdf(df$value[group4])(x),
+      ecdf(df$value[group5])(x),
+      ecdf(df$value[group6])(x)
+    ))
+}
+
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.jaccard.vag$distances ),
+  quan1 = rep(quan(0.5), each = nrow(otu.tab)),
+  quan2 = rep(quan(0.55), each = nrow(otu.tab)),
+  quan3 = rep(quan(0.6), each = nrow(otu.tab)),
+  quan4 = rep(quan(0.65), each = nrow(otu.tab)),
+  quan5 = rep(quan(0.7), each = nrow(otu.tab))
+)
+
+df$type <- factor(df$type, 
+                  levels = method.names)
+
+cdf.jaccard.vag.label <- df %>% 
+  ggplot()+
+  stat_ecdf(aes(value, group = type, color = type), geom = "step",size=0.8,alpha=0.7)+
+  geom_point(aes(x=0.5,
+                 y=quan1, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.55,
+                 y=quan2, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.6,
+                 y=quan3, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.65,
+                 y=quan4, group = type,
+                 color = type, shape = type), size=2)+
+  geom_point(aes(x=0.7,
+                 y=quan5, group = type,
+                 color = type, shape = type), size=2)+
+  ylab("Empirical Probability")+
+  xlab("Distance to Centroids")+
+  labs(color = "MOMS-PI: Jaccard", shape = "MOMS-PI: Jaccard")+
+  scale_color_manual(values=c("black","red","deeppink","blue","gold","darkgreen"))+
+  scale_shape_manual(values = c(8,2,0,1,5, 4))+
+  theme_bw()+
+  theme(legend.position = "none",
+        legend.background = element_rect(fill='transparent')
+  )+
+  annotate("text", x = 0.605, y = 0.18, 
+           label = "K-S p-value: \nMIDASim (nonparametric)=0.4812 \nMIDASim (parametric)=0.0278 \nD-M<0.0001 \nMetaSPARSim<0.0001 \nSparseDOSSA<0.0001",
+           hjust = 0) 
+
+cdf.jaccard.vag.label
+```
+
+
+```{r vaginal ecdf bc}
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.bc.vag$distances )
+)
+quan <- function(x){
+  return(
+    c(ecdf(df$value[group1])(x),
+         ecdf(df$value[group2])(x),
+         ecdf(df$value[group3])(x),
+         ecdf(df$value[group4])(x),
+         ecdf(df$value[group5])(x),
+      ecdf(df$value[group6])(x)
+  ))
+}
+
+df <- data.frame(
+  type = rep(method.names, each = nrow(otu.tab)),
+  value = c( bd.bc.vag$distances ),
+  quan1 = rep(quan(0.4), each = nrow(otu.tab)),
+  quan2 = rep(quan(0.45), each = nrow(otu.tab)),
+  quan3 = rep(quan(0.5), each = nrow(otu.tab)),
+  quan4 = rep(quan(0.55), each = nrow(otu.tab)),
+  quan5 = rep(quan(0.6), each = nrow(otu.tab))
+  )
+
+df$type <- factor(df$type, 
+                  levels = method.names)
+
+cdf.bc.vag.label <- df %>% 
+  ggplot()+
+   stat_ecdf(aes(value, group = type, color = type), geom = "step",size=0.8,alpha=0.7)+
+  geom_point(aes(x=0.4,
+                  y=quan1, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.45,
+                  y=quan2, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.5,
+                  y=quan3, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.55,
+                  y=quan4, group = type,
+                  color = type, shape = type), size=2)+
+  geom_point(aes(x=0.6,
+                  y=quan5, group = type,
+                  color = type, shape = type), size=2)+
+  ylab("Empirical Probability")+
+  xlab("Distance to Centroids")+
+  labs(color = "MOMS-PI: Bray-Curtis", shape = "MOMS-PI: Bray-Curtis")+
+  scale_color_manual(values=c("black","red","deeppink","blue","gold","darkgreen"))+
+  scale_shape_manual(values = c(8,2,0,1,5, 4))+
+  theme_bw()+
+  theme(legend.position = "none",
+        legend.background = element_rect(fill='transparent')
+         )+
+  annotate("text", x = 0.54, y = 0.18, 
+           label = "K-S p-value: \nMIDASim (nonparametric)=0.0001 \nMIDASim (parametric)<0.0001 \nD-M<0.0001 \nMetaSPARSim<0.0001 \nSparseDOSSA<0.0001",
+           hjust = 0) 
+
+cdf.bc.vag.label
+```
+
+
+```{r patchwork-ecdf}
+patchwork_ecdf <- cdf.jaccard.ibd.label + cdf.bc.ibd.label + cdf.jaccard.vag.label + cdf.bc.vag.label
+
+patchwork_ecdf[[1]] <- patchwork_ecdf[[1]] + theme(
+  axis.title.x = element_blank())+
+  ggtitle('A')
+
+
+patchwork_ecdf[[2]] <- patchwork_ecdf[[2]] + theme(axis.text.y = element_blank(),
+                                        axis.ticks.y = element_blank(),
+                                        axis.title.y = element_blank(),
+                                        axis.title.x = element_blank()
+                                        )+
+  annotate("text", x = 0.28, y = 0.98, 
+           label = "IBD: Bray-Curtis",
+           hjust = 0) +
+  ggtitle('B')
+
+patchwork_ecdf[[3]] <- patchwork_ecdf[[3]] + theme(
+  legend.position = "none")+
+  annotate("text", x = 0.45, y = 0.98, 
+           label = "MOMS-PI: Jaccard",
+           hjust = 0) +
+  ggtitle('C')
+
+
+patchwork_ecdf[[4]] <- patchwork_ecdf[[4]] + theme(axis.text.y = element_blank(),
+                                        axis.ticks.y = element_blank(),
+                                        axis.title.y = element_blank() )+
+  annotate("text", x = 0.25, y = 0.98, 
+           label = "MOMS-PI: Bray-Curtis",
+           hjust = 0) +
+  ggtitle('D')
+
+patchwork_ecdf+ 
+  plot_layout(nrow = 2, ncol = 2)
+```
+
+
+# alpha diversity plot
+
+```{r alpha prepare}
+tmp <- rbind(count.ibd, 
+             sim.count.midas.ibd,
+             sim.count.gg1.ibd,
+             sim.count.dm.ibd,
+             sim.count.metas.ibd,
+             sim.count.sparsed.ibd
+)
+
+rownames(tmp) <- 1:nrow(tmp)
+OTU <- otu_table( tmp, taxa_are_rows = F)
+SAM <- sample_data( data.frame(
+  name = rownames(tmp),
+  type = rep(method.names, 
+             each = nrow(count.ibd)) ))
+sample_names(SAM) <- SAM$name
+dt <- phyloseq(OTU,SAM)
+
+
+alpha.ibd <- microbiome::alpha(dt, index = c("observed", "diversity_shannon"))
+
+alpha.ibd$Method <- factor(dt@sam_data$type, 
+                           levels = method.names)
+
+tmp <- rbind(count.vaginal, 
+             sim.count.midas.vag,
+             sim.count.gg1.vag,
+             sim.count.dm.vag,
+             sim.count.metas.vag,
+             sim.count.sparsed.vag
+)
+
+rownames(tmp) <- 1:nrow(tmp)
+OTU <- otu_table( tmp, taxa_are_rows = F)
+SAM <- sample_data( data.frame(
+  name = rownames(tmp),
+  type = rep(method.names, 
+             each = nrow(count.vaginal)) ))
+sample_names(SAM) <- SAM$name
+dt <- phyloseq(OTU,SAM)
+
+
+alpha.vag <- microbiome::alpha(dt, index = c("observed",
+                                             "diversity_shannon"))
+
+alpha.vag$Method <- factor(dt@sam_data$type, 
+                           levels = method.names)
+```
+
+
+```{r alpha plot}
+method.colors <- c("black","red","deeppink","blue","gold","darkgreen")
+a1 <- ggboxplot(alpha.ibd,
+               x = "Method", y = "observed", color = "Method",
+               outlier.shape = NA, add = "jitter", size = 0.6)+
+    scale_color_manual(values=method.colors)+
+  theme_bw()
+
+a2 <- ggboxplot(alpha.ibd,
+               x = "Method", y = "diversity_shannon", color = "Method",
+               outlier.shape = NA, add = "jitter", size = 0.6)+
+    scale_color_manual(values=method.colors)+
+  theme_bw()
+
+
+a3 <- ggboxplot(alpha.vag,
+               x = "Method", y = "observed", color = "Method",
+               outlier.shape = NA, add = "jitter", size = 0.6)+
+    scale_color_manual(values=method.colors)+
+  theme_bw() +
+  ylim(c(0,355))
+
+a4 <- ggboxplot(alpha.vag,
+               x = "Method", y = "diversity_shannon", color = "Method",
+               outlier.shape = NA, add = "jitter", size = 0.6)+
+    scale_color_manual(values=method.colors)+
+  theme_bw()
+
+patchwork_alpha = a1 + a2 + a3 + a4
+
+patchwork_alpha[[1]] = patchwork_alpha[[1]] + 
+  ggtitle('IBD: Richness') + theme(axis.title.x  = element_blank(),
+                                   axis.text.x = element_blank(),
+                                   legend.position = "none")
+
+
+patchwork_alpha[[2]] = patchwork_alpha[[2]] + theme(
+                                        axis.title.x  = element_blank(),
+                                        axis.text.x = element_blank(),
+                                        legend.position = "none")+
+  ggtitle('IBD: Shannon')
+
+patchwork_alpha[[3]] = patchwork_alpha[[3]] + 
+  ggtitle('MOMS-PI: Richness') + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                                   legend.position = "none")
+
+
+patchwork_alpha[[4]] = patchwork_alpha[[4]] + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                                        legend.position = "none")+
+  ggtitle('MOMS-PI: Shannon')
+
+
+
+patchwork_alpha+ 
+  plot_layout(nrow = 2, ncol = 2, guides = "collect")
+```
+
+
+```{r alpha add significance level}
+y.label = 260
+b1 = a1 + 
+  annotate("text", x = c(2, 3), y = c(y.label+5, y.label+5), 
+           label = "ns", size = 4, color = "black") +
+  annotate("text", x = c(4:6), y = c(y.label, y.label, y.label), 
+           label = "***", size = 6, color = "black")
+b1
+y.label = 4
+b2 = a2 + 
+  annotate("text", x = c(2,3), y = c(y.label+0.1), 
+           label = "ns", size = 4, color = "black") +
+  annotate("text", x = c(4:6), y = c(y.label, y.label, y.label), 
+           label = "***", size = 6, color = "black")
+b2
+y.label = 350
+b3 = a3 + 
+  annotate("text", x = c(3), y = c(y.label+5, y.label+5), 
+           label = "ns", size = 4, color = "black") +
+  annotate("text", x = c(2), y = c(y.label), 
+           label = "*", size = 6, color = "black") +
+  annotate("text", x = c(4:6), y = c(y.label, y.label, y.label), 
+           label = "***", size = 6, color = "black")
+b3
+
+y.label = 3.4
+b4 = a4 + 
+  annotate("text", x = c(2:5), y = c(y.label, y.label, y.label, y.label), 
+           label = "***", size = 6, color = "black")+ 
+  annotate("text", x = c(6), y = c(y.label), 
+           label = "**", size = 6, color = "black")
+b4
+```
+
+
+```{r alpha plot}
+method.colors = c("black","red","deeppink","blue","gold","darkgreen")
+
+patchwork_alpha = b1 + b2 + b3 + b4
+
+patchwork_alpha[[1]] = patchwork_alpha[[1]] + 
+  ggtitle('IBD: Richness') + theme(axis.title.x  = element_blank(),
+                                   axis.text.x = element_blank(),
+                                   legend.position = "none")
+
+
+patchwork_alpha[[2]] = patchwork_alpha[[2]] + theme(
+                                        axis.title.x  = element_blank(),
+                                        axis.text.x = element_blank(),
+                                        legend.position = "none")+
+  ggtitle('IBD: Shannon')
+
+patchwork_alpha[[3]] = patchwork_alpha[[3]] + 
+  ggtitle('MOMS-PI: Richness') + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                                   legend.position = "none")
+
+
+patchwork_alpha[[4]] = patchwork_alpha[[4]] + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                                        legend.position = "none")+
+  ggtitle('MOMS-PI: Shannon')
+
+
+
+patchwork_alpha+ 
+  plot_layout(nrow = 2, ncol = 2, guides = "collect")
+```
+
