@@ -2,12 +2,12 @@
 % Please edit documentation in R/MIDASim.R
 \name{MIDASim}
 \alias{MIDASim}
-\title{Simulating Realistic Microbiome Data using MIDAS}
+\title{Simulating Realistic Microbiome Data using MIDASim}
 \usage{
 MIDASim(fitted.modified, only.rel = FALSE)
 }
 \arguments{
-\item{fitted.modified}{Output from Midas.modify}
+\item{fitted.modified}{Output from MIDASim.modify.}
 
 \item{only.rel}{A logical indicating whether to only simulate relative-
 abundance data. If \code{TRUE}, then the count data will not be generated.
@@ -20,16 +20,18 @@ Returns a list that has components:
 \item{sim_count}{Matrix of simulated count data}
 }
 \description{
-Generate microbiome datasets using parameters from Midas.modify.
+Generate microbiome datasets using parameters from MIDASim.modify.
 }
 \examples{
 
-data("throat.otu.tab")
-otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
+\donttest{
+  data("throat.otu.tab")
+  otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 
-fitted = MIDASim.setup(otu.tab)
-fitted.modified = MIDASim.modify(fitted)
-sim = MIDASim(fitted.modified, only.rel = FALSE)
+  fitted = MIDASim.setup(otu.tab)
+  fitted.modified = MIDASim.modify(fitted)
+  sim = MIDASim(fitted.modified, only.rel = FALSE)
+}
 
 }
 \author{

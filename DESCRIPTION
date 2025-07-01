@@ -1,28 +1,33 @@
 Package: MIDASim
 Type: Package
-Title: Simulating Realistic Microbiome Data using MIDASim
-Version: 0.1.0
-Description: A Microbiome Data Simulator (MIDASim) for generating microbiome datasets that resemble a template microbiome dataset of the user's choice.
-Imports: psych, MASS, pracma, scam, stats
+Title: Simulating Realistic Microbiome Data using 'MIDASim'
+Version: 2.0
+Description: The 'MIDASim' package is a microbiome data simulator for generating realistic microbiome datasets by adapting a user-provided template. It supports the controlled introduction of experimental signals-such as shifts in taxon relative abundances, prevalence, and sample library sizes-to create distinct synthetic populations under diverse simulation scenarios. For more details, see He et al. (2024) <doi:10.1186/s40168-024-01822-z>.
+Imports: 
+  psych, 
+  MASS, 
+  pracma, 
+  scam, 
+  stats
 biocViews:
 Suggests:
   vegan,
   phyloseq, 
   rmarkdown, 
   knitr, 
-  HMP2Data, 
   roxygen2,
   testthat
-Author: Mengyu He
-Maintainer: Mengyu He <mhe44@emory.edu>
+Authors@R: person(given = "Mengyu",
+                  family = "He",
+                  role = c("aut", "cre"),
+                  email = "mhe44@emory.edu")
 URL: https://github.com/mengyu-he/MIDASim
-BugReports: https://github.com/mengyu-he/MIDASim
+BugReports: https://github.com/mengyu-he/MIDASim/issues
 LazyData: true
 License: GPL-2
 Encoding: UTF-8
-Depends: R (>= 2.10)
+Depends: R (>= 3.5.0)
 VignetteBuilder: knitr
-Vignette: MIDASim_vignette.Rmd
 RoxygenNote: 7.3.1
 Config/testthat/edition: 3
 NeedsCompilation: no

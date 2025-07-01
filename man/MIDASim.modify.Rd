@@ -2,7 +2,7 @@
 % Please edit documentation in R/MIDASim.modify.R
 \name{MIDASim.modify}
 \alias{MIDASim.modify}
-\title{Modifying MIDAS model}
+\title{Modifying MIDASim model}
 \usage{
 MIDASim.modify(
   fitted,
@@ -11,11 +11,12 @@ MIDASim.modify(
   gengamma.mu = NULL,
   sample.1.prop = NULL,
   taxa.1.prop = NULL,
+  individual.rel.abund = NULL,
   ...
 )
 }
 \arguments{
-\item{fitted}{Output from Midas.setup.}
+\item{fitted}{Output from MIDASim.setup.}
 
 \item{lib.size}{Numeric vector of pre-specified library sizes (length should
 be equal to \code{n.sample} if specified). In nonparametric mode, if \code{lib.size}
@@ -37,6 +38,11 @@ argument is only applicable in nonparametric mode.}
 taxa (the length should be equal to \code{n.taxa} in \code{fitted}). This argument
 is only applicable in nonparametric mode.}
 
+\item{individual.rel.abund}{Numeric matrix of expected relative abundances
+with \code{n.sample} rows and \code{n.taxa} columns (rows should sum to 1).
+Provides subject‑specific mean compositions and therefore overrides
+\code{mean.rel.abund} and \code{gengamma.mu}. Only applicable in parametric mode.}
+
 \item{...}{Additional arguments. If SCAM model is chosen for parameter changes
 under the non-parametric mode, specify \code{SCAM = T}.}
 }
@@ -53,7 +59,7 @@ presence-absence data.}
 absence data.}
 }
 \description{
-Midas.modify modifies the fitted MIDAS.setup model according to user
+MIDASim.modify() modifies the fitted MIDASim.setup model according to user
 specification that one or multiple of the following characteristics, such as
 the library sizes, taxa relative abundances, location parameters of the parametric
 model can be changed. This is useful if the users wants to introduce an 'effect'
@@ -71,24 +77,22 @@ MIDASim fits the model to the template data and estimates parameters \eqn{\mu}, 
 and \eqn{Q} by matching the first two moments of \eqn{\pi} and maximizing the likelihood.
 }
 \examples{
+\donttest{
+  data("throat.otu.tab")
+  otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 
-data("throat.otu.tab")
-otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
+  fitted = MIDASim.setup(otu.tab, mode = 'parametric')
 
-fitted = MIDASim.setup(otu.tab, mode = 'parametric')
-
-# modify library sizes
-fitted.modified <- MIDASim.modify(fitted,
-                                  lib.size = sample(fitted$lib.size, 2*nrow(otu.tab),
+  # modify library sizes
+  fitted.modified <- MIDASim.modify(fitted,
+                                    lib.size = sample(fitted$lib.size, 2*nrow(otu.tab),
                                                     replace = TRUE) )
 
-# modify mean relative abundances
-fitted.modified <- MIDASim.modify(fitted,
-                                  mean.rel.abund = fitted$mean.rel.abund * runif(fitted$n.taxa))
-# modify location parameters of the parametric model
-fitted.modified <- MIDASim.modify(fitted,
-                                  gengamma.mu = fitted$mean.rel.abund * runif(fitted$n.taxa))
+  # modify mean relative abundances
+  fitted.modified <- MIDASim.modify(fitted,
+                                    mean.rel.abund = fitted$mean.rel.abund * runif(fitted$n.taxa))
 
+}
 }
 \author{
 Mengyu He

@@ -1,12 +1,12 @@
-#' Modifying MIDAS model
+#' Modifying MIDASim model
 #'
-#' Midas.modify modifies the fitted MIDAS.setup model according to user
+#' MIDASim.modify() modifies the fitted MIDASim.setup model according to user
 #' specification that one or multiple of the following characteristics, such as
 #' the library sizes, taxa relative abundances, location parameters of the parametric
 #' model can be changed. This is useful if the users wants to introduce an 'effect'
 #' in simulation studies.
 #'
-#' @param fitted Output from Midas.setup.
+#' @param fitted Output from MIDASim.setup.
 #' @param lib.size Numeric vector of pre-specified library sizes (length should
 #' be equal to \code{n.sample} if specified). In nonparametric mode, if \code{lib.size}
 #' is specified, both \code{taxa.1.prop} and \code{sample.1.prop} should be specified.
@@ -22,6 +22,10 @@
 #' @param sample.1.prop Numeric vector of specified proportion of non-zeros for
 #' subjects (the length should be equal to \code{n.sample} in \code{fitted}). This
 #' argument is only applicable in nonparametric mode.
+#' @param individual.rel.abund Numeric matrix of expected relative abundances
+#' with \code{n.sample} rows and \code{n.taxa} columns (rows should sum to 1).
+#' Provides subject‑specific mean compositions and therefore overrides
+#' \code{mean.rel.abund} and \code{gengamma.mu}. Only applicable in parametric mode.
 #' @param ... Additional arguments. If SCAM model is chosen for parameter changes
 #' under the non-parametric mode, specify \code{SCAM = T}.
 #'
@@ -49,56 +53,64 @@
 #' @author Mengyu He
 #'
 #' @examples
+#' \donttest{
+#'   data("throat.otu.tab")
+#'   otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 #'
-#' data("throat.otu.tab")
-#' otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
+#'   fitted = MIDASim.setup(otu.tab, mode = 'parametric')
 #'
-#' fitted = MIDASim.setup(otu.tab, mode = 'parametric')
-#'
-#' # modify library sizes
-#' fitted.modified <- MIDASim.modify(fitted,
-#'                                   lib.size = sample(fitted$lib.size, 2*nrow(otu.tab),
+#'   # modify library sizes
+#'   fitted.modified <- MIDASim.modify(fitted,
+#'                                     lib.size = sample(fitted$lib.size, 2*nrow(otu.tab),
 #'                                                     replace = TRUE) )
 #'
-#' # modify mean relative abundances
-#' fitted.modified <- MIDASim.modify(fitted,
-#'                                   mean.rel.abund = fitted$mean.rel.abund * runif(fitted$n.taxa))
-#' # modify location parameters of the parametric model
-#' fitted.modified <- MIDASim.modify(fitted,
-#'                                   gengamma.mu = fitted$mean.rel.abund * runif(fitted$n.taxa))
+#'   # modify mean relative abundances
+#'   fitted.modified <- MIDASim.modify(fitted,
+#'                                     mean.rel.abund = fitted$mean.rel.abund * runif(fitted$n.taxa))
 #'
+#' }
 #' @import stats
 #' @import scam
 #' @export
-MIDASim.modify = function(fitted,
-                          lib.size = NULL,
-                          mean.rel.abund = NULL,
-                          gengamma.mu = NULL,
-                          sample.1.prop = NULL,
-                          taxa.1.prop = NULL, ...) {
+MIDASim.modify <- function(fitted,
+                           lib.size = NULL,
+                           mean.rel.abund = NULL,
+                           gengamma.mu = NULL,
+                           sample.1.prop = NULL,
+                           taxa.1.prop = NULL,
+                           individual.rel.abund = NULL,
+                           ...) {
 
-  if ( fitted$mode == 'parametric' ) {
+  if (fitted$mode == "parametric") {
 
     arg <- as.numeric( !c(is.null(lib.size), is.null(mean.rel.abund),
                           is.null(gengamma.mu), is.null(sample.1.prop),
-                          is.null(taxa.1.prop)) )
+                          is.null(taxa.1.prop), is.null(individual.rel.abund)) )
     fitted$n.sample <- n.sample <- ifelse(arg[1] == 0, fitted$n.sample, length(lib.size))
     n.taxa <- fitted$n.taxa
 
     stopifnot( "Specify either mean.rel.abund or gengamma.mu, not both. " = (sum(arg[2:3]) < 2) )
+    stopifnot( "Sample size inconsistent: Number of rows in individual.rel.abund should be the same as the length of lib.size" = (nrow(individual.rel.abund) == length(lib.size)) )
+    if ( sum(arg[c(2:3, 6)]) >= 2 ) message("individual.rel.abund will overide mean.rel.abund and gengamma.mu")
 
-    fitted$mu.est = -fitted$mu.est  #  mu is now (-mu)
-    if (arg[2] == 1) {
+    fitted$mu.est <- -fitted$mu.est  #  mu is now (-mu)
+    if (arg[6] == 1) {
+      # individual rel abund specified
+      fitted$individual.rel.abund <- individual.rel.abund / rowSums(individual.rel.abund)
+      fitted$mu.est <- mu_of_sigma_Q(sigma = fitted$sigma.est,
+                                     Q = fitted$Q.est,
+                                     m1 = fitted$individual.rel.abund)
+    } else if (arg[2] == 1) {
       # mean rel abund specified
-      fitted$mean.rel.abund = mean.rel.abund
-      fitted$mu.est = mu.of.sigma.Q(sigma = fitted$sigma.est,
-                                    Q = fitted$Q.est,
-                                    m1 = fitted$mean.rel.abund)
+      fitted$mean.rel.abund <- mean.rel.abund
+      fitted$mu.est <- mu_of_sigma_Q(sigma = fitted$sigma.est,
+                                     Q = fitted$Q.est,
+                                     m1 = fitted$mean.rel.abund)
     } else if (arg[3] == 1) {
       # gengamma.mu specified
-      gengamma.mu = -gengamma.mu
-      est = est.mu(gengamma.mu, fitted$sigma.est, fitted$Q.est)
-      fitted$mu.est = gengamma.mu + log( sum(est, na.rm = T) )
+      gengamma.mu <- -gengamma.mu
+      est <- est.mu(gengamma.mu, fitted$sigma.est, fitted$Q.est)
+      fitted$mu.est <- gengamma.mu + log(sum(est, na.rm = TRUE))
     }
 
     if (arg[1] == 1) {
@@ -106,25 +118,25 @@ MIDASim.modify = function(fitted,
       fitted$n.sample <- length(lib.size)
     }
 
-    fitted$prob01.mat = get.prob01.mat(fitted$mu.est, fitted$sigma.est,
-                                       fitted$Q.est, fitted$lib.size)
+    fitted$prob01.mat <- get_prob01_mat(fitted$mu.est, fitted$sigma.est,
+                                        fitted$Q.est, fitted$lib.size)
 
-    sample.1 = rowSums(fitted$prob01.mat)
-    taxa.1 = colSums(fitted$prob01.mat)
-    fitted$sample.1.prop = sample.1/n.taxa
-    fitted$taxa.1.prop = taxa.1/n.sample
-    Ztotal = sum(fitted$prob01.mat)
+    sample.1 <- rowSums(fitted$prob01.mat)
+    taxa.1 <- colSums(fitted$prob01.mat)
+    fitted$sample.1.prop <- sample.1 / n.taxa
+    fitted$taxa.1.prop <- taxa.1 / n.sample
+    Ztotal <- sum(fitted$prob01.mat)
 
-    fitted$mu.est = -fitted$mu.est
+    fitted$mu.est <- -fitted$mu.est
 
   } else {
 
     stopifnot( "The argument gengamma.mu is not applicable in nonparametric mode " = (is.null(gengamma.mu)) )
 
     dots <- list(...)
-    if ("SCAM" %in% names(dots) && dots$SCAM == T) {
+    if ("SCAM" %in% names(dots) && dots$SCAM == TRUE) {
 
-      mean.rel.abund.1 = dots$mean.rel.abund.1
+      mean.rel.abund.1 <- dots$mean.rel.abund.1
       arg <- as.numeric( !c(is.null(lib.size), is.null(mean.rel.abund),
                             is.null(mean.rel.abund.1), is.null(taxa.1.prop)) )
 
@@ -135,8 +147,7 @@ MIDASim.modify = function(fitted,
       obs.lib.size <- fitted$lib.size
       obs.mean.rel.abund <- fitted$mean.rel.abund
       obs.sample.1.prop <- fitted$sample.1.prop
-      obs.sample.1.ct <- obs.sample.1.prop*n.taxa
-
+      obs.sample.1.ct <- obs.sample.1.prop * n.taxa
 
       stopifnot( "Only providing mean relative abundances among non-zero samples is not allowed" =  (!identical(arg[2:4], c(0, 1, 0))) )
 
@@ -238,29 +249,29 @@ MIDASim.modify = function(fitted,
       if (arg[1] == 1) {
         # lib.size specified
         stopifnot( "If library sizes are changed in nonparametric mode, both 'sample.1.prop' and 'taxa.1.prop' arguments must be provided. " = (sum(arg[3:4]) == 2) )
-        fitted$lib.size = lib.size
+        fitted$lib.size <- lib.size
       }
-      if (arg[2] == 1) fitted$mean.rel.abund = mean.rel.abund
-      if (arg[3] == 1) fitted$sample.1.prop = sample.1.prop
-      if (arg[4] == 1) fitted$taxa.1.prop = taxa.1.prop
+      if (arg[2] == 1) fitted$mean.rel.abund <- mean.rel.abund
+      if (arg[3] == 1) fitted$sample.1.prop <- sample.1.prop
+      if (arg[4] == 1) fitted$taxa.1.prop <- taxa.1.prop
 
       stopifnot( "Ensure that 'sample.1.prop' is synchronized with 'taxa.1.prop' with respect to the total number of non-zero entries across the entire table, meaning that the product of 'sample.1.prop' and 'n.taxa' should equal the product of 'taxa.1.prop' and 'n.sample'. " = (all.equal(sum(fitted$taxa.1.prop) * fitted$n.sample, sum(fitted$sample.1.prop) * fitted$n.taxa)) )
 
-      mean.rel.abund.1 = sapply(fitted$rel.abund.1, mean)
+      mean.rel.abund.1 <- sapply(fitted$rel.abund.1, mean)
       if (all.equal(fitted$mean.rel.abund, mean.rel.abund.1 * fitted$taxa.1.prop) != TRUE) {
 
-        mean.rel.abund.1 = fitted$mean.rel.abund / fitted$taxa.1.prop
+        mean.rel.abund.1 <- fitted$mean.rel.abund / fitted$taxa.1.prop
 
         for (j in 1:n.taxa) {
           equa <- function(x) mean(fitted$rel.abund.1[[j]]^x) - mean.rel.abund.1[j]
-          a <- pracma::fzero(fun = equa , x = c(-0.1, 1000))$x
+          a <- pracma::fzero(fun = equa, x = c(-0.1, 1000))$x
 
           fitted$rel.abund.1[[j]] <- fitted$rel.abund.1[[j]]^a
         } # find a
 
       } # adjust non-zero relative abundances
 
-      Ztotal = sum(fitted$taxa.1.prop) * n.sample
+      Ztotal <- sum(fitted$taxa.1.prop) * n.sample
 
     } # whether SCAM
 
@@ -284,11 +295,11 @@ MIDASim.modify = function(fitted,
     fitted$ids.left <- (1:n.taxa)
   }
 
-  tmp = solver_theta_eta( theta0 = fitted$theta, eta0 = rep(0, n.sample),
-                          Ztotal = Ztotal,
-                          sample.1.prop = fitted$sample.1.prop,
-                          taxa.1.prop = fitted$taxa.1.prop,
-                          ids.left = fitted$ids.left, n.sample = n.sample, n.rm = n.rm)
+  tmp <- solver_theta_eta( theta0 = fitted$theta, eta0 = rep(0, n.sample),
+                           Ztotal = Ztotal,
+                           sample.1.prop = fitted$sample.1.prop,
+                           taxa.1.prop = fitted$taxa.1.prop,
+                           ids.left = fitted$ids.left, n.sample = n.sample, n.rm = n.rm)
   fitted$theta <- tmp[["theta0"]]
   fitted$eta <- tmp[["eta0"]]
 

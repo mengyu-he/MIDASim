@@ -32,21 +32,22 @@
 #' @author Mengyu He
 #'
 #' @examples
-#'
+#' \donttest{
 #' data("throat.otu.tab")
-#' otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
+#'   otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 #'
-#' # use nonparametric model
-#' fitted = MIDASim.setup(otu.tab)
+#'   # use nonparametric model
+#'   fitted = MIDASim.setup(otu.tab)
 #'
-#' # use parametric model
-#' fitted = MIDASim.setup(otu.tab, mode = 'parametric')
+#'   # use parametric model
+#'   fitted = MIDASim.setup(otu.tab, mode = 'parametric')
+#' }
 #'
 #' @importFrom stats cor
 #' @export
-MIDASim.setup = function(otu.tab,
-                         n.break.ties = 100,
-                         mode = 'nonparametric') {
+MIDASim.setup <- function(otu.tab,
+                          n.break.ties = 100,
+                          mode = "nonparametric") {
 
   # otu.tab : col-taxon, row-sample
   otu.tab <- as.matrix(otu.tab)
@@ -58,19 +59,19 @@ MIDASim.setup = function(otu.tab,
 
   if (min(rowSums(otu.tab)) == 0) {
     message("The samples with no observed taxa are removed")
-    otu.tab <- otu.tab[rowSums(otu.tab)>0, ]
+    otu.tab <- otu.tab[rowSums(otu.tab) > 0, ]
   }
 
-  stopifnot("Invalid value for 'mode'. Please choose either 'parametric' or 'nonparametric'." = (mode %in% c('parametric', 'nonparametric')))
+  stopifnot("Invalid value for 'mode'. Please choose either 'parametric' or 'nonparametric'." = (mode %in% c("parametric", "nonparametric")))
 
-  mat01 <- (otu.tab > 0) *1
+  mat01 <- (otu.tab > 0) * 1
   rel.tab <- normalize_rel(otu.tab)
   obs.lib.size <- rowSums(otu.tab)
   rel.abund.1 <- apply(rel.tab, 2, function(x) x[x > 0])
 
   n.sample <- nrow(mat01)
   n.taxa <- ncol(mat01)
-  ids <- which( colSums(mat01) == n.sample )
+  ids <- which(colSums(mat01) == n.sample)
 
   sample.1.prop <- rowMeans(mat01) # proportion of 1's of samples
   taxa.1.prop <- colMeans(mat01)    # proportion of 1's of taxa
@@ -83,17 +84,17 @@ MIDASim.setup = function(otu.tab,
   for (i in 1:n.break.ties) {
     rank.tab <- apply(rel.tab, 2,  function(x) rank(x, ties.method = "random"))
     corr.rank <- cor(rank.tab, method =  "spearman")
-    corr.rel <- corr.rel + 2*sin(pi*corr.rank/6)
+    corr.rel <- corr.rel + 2 * sin(pi * corr.rank / 6)
   }
 
-  corr.rel <- corr.rel/n.break.ties
+  corr.rel <- corr.rel / n.break.ties
   corr.rel.corrected <- correct_corr(corr.rel)
 
-  if (mode == 'parametric') {
+  if (mode == "parametric") {
 
     cv.sq <- n.sample / (n.sample - 1) * (colMeans(rel.tab^2) - mean.rel.abund^2) / mean.rel.abund^2  # coefficient of variation^2
     m3 <- rep(NA, n.taxa)
-    m3[taxa.1.prop == 1] <- as.vector(apply(rel.tab[, taxa.1.prop == 1, drop=FALSE], 2, function(x) mean(x^3)))
+    m3[taxa.1.prop == 1] <- as.vector(apply(rel.tab[, taxa.1.prop == 1, drop = FALSE], 2, function(x) mean(x^3)))
     fitted.ggamma <- fit_ggamma(cv.sq, mean.rel.abund, obs.lib.size, mat01, m3)
 
     fitted <- append(fitted, list(mat01 = mat01,
@@ -111,8 +112,7 @@ MIDASim.setup = function(otu.tab,
                                   taxa.names = colnames(otu.tab),
                                   mu.est = -fitted.ggamma$mu.est,    # mu is now (-mu)
                                   sigma.est = fitted.ggamma$sigma.est,
-                                  Q.est = fitted.ggamma$Q.est
-    ) )
+                                  Q.est = fitted.ggamma$Q.est))
 
   } else {
 
@@ -128,11 +128,9 @@ MIDASim.setup = function(otu.tab,
                                   corr.rel.corrected = corr.rel.corrected,
                                   mean.rel.abund = mean.rel.abund,
                                   taxa.names = colnames(otu.tab),
-                                  rel.abund.1 = rel.abund.1 ) )
+                                  rel.abund.1 = rel.abund.1))
   }
 
   return(fitted)
 
 }
-
-

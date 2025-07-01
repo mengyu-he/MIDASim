@@ -42,15 +42,16 @@ Midas.setup estimates parameters from a template microbiome count dataset for
 downstream data simulation.
 }
 \examples{
-
+\donttest{
 data("throat.otu.tab")
-otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
+  otu.tab = throat.otu.tab[,colSums(throat.otu.tab>0)>1]
 
-# use nonparametric model
-fitted = MIDASim.setup(otu.tab)
+  # use nonparametric model
+  fitted = MIDASim.setup(otu.tab)
 
-# use parametric model
-fitted = MIDASim.setup(otu.tab, mode = 'parametric')
+  # use parametric model
+  fitted = MIDASim.setup(otu.tab, mode = 'parametric')
+}
 
 }
 \author{
