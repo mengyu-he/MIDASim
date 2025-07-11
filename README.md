@@ -20,6 +20,12 @@ These packages are all available on CRAN.
 
 ## Installation
 
+MIDASim 2.0 is on CRAN now. To install from CRAN,
+
+```{r}
+install.packages("MIDASim")
+```
+
 Install from the local file (the .tar.gz file), which you can download from https://github.com/mengyu-he/MIDASim.
 
 ```{r}
